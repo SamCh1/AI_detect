@@ -82,6 +82,21 @@ result. The full constraint lists live in each app's `AGENTS.md`.
    automation aliases in the README examples. Translating an identifier changes
    behaviour; translating a caption does not.
 
+9. **Write shell commands as single-line `&&` chains, not multi-line blocks.** The
+   global `rtk` auto-rewrite hook adds the `rtk` prefix for you, but it matches on
+   the command's leading token — so a newline-separated block starting with `cd …`
+   matches nothing, and the hook returns **silently**: no rewrite, no warning.
+   Measured 2026-09-12: 48 of 51 commands in one session ran unprefixed despite the
+   rule above. `cd x && git status && grep foo` has every command rewritten;
+   `cd x` ⏎ `git status` has none. The one unavoidable exception is a heredoc
+   (`git commit -F - <<'EOF'`), which saves nothing anyway.
+   Do not "fix" this by editing the RTK section above. Upstream, that block is a
+   *generated* region fenced by `<!-- rtk-instructions vN -->` markers and an edit
+   inside it is reverted by the next rtk update. Our copy was written by hand and
+   carries no markers — so if rtk's updater ever manages this file it will not
+   recognise the section and may append a second one. Keep caveats out here, in this
+   list, where nothing regenerates over them.
+
 ## Running and verifying
 
 ```bash
