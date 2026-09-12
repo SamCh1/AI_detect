@@ -1,0 +1,41 @@
+# Routes
+
+- `GET` `/favicon.ico` params()
+- `GET` `/login` params()
+- `POST` `/auth/login` params() [auth]
+- `POST` `/auth/logout` params() [auth]
+- `GET` `/` params() [auth]
+- `GET` `/cameras` params() [auth]
+- `GET` `/camera/{camera_name:path}` params(path) [auth]
+- `GET` `/{page_name}` params(page_name) [auth]
+- `GET` `/api/logs` params() [auth]
+- `POST` `/api/logs/clear` params() [auth]
+- `GET` `/api/event-image/{filename}` params(filename) [auth, cache]
+- `GET` `/api/teldrive/file/{file_id}/{file_name:path}` params(path, file_id) [auth, cache]
+- `POST` `/api/user/update` params() [auth]
+- `GET` `/api/config` params() [auth]
+- `POST` `/api/config` params() [auth]
+- `GET` `/api/cameras` params() [auth]
+- `GET` `/api/camera/detail/{camera_name:path}` params(path) [auth]
+- `POST` `/api/cameras` params() [auth]
+- `POST` `/api/teldrive/check` params() [auth]
+- `GET` `/api/status` params() [auth, cache]
+- `POST` `/api/start` params() [auth]
+- `POST` `/api/stop` params() [auth]
+- `GET` `/api/events` params() [auth, cache]
+- `GET` `/api/events/trends` params() [auth, cache]
+- `GET` `/api/recordings` params() [auth, cache]
+- `DELETE` `/api/events` params() [auth, db]
+- `DELETE` `/api/recordings` params() [auth, db]
+- `POST` `/api/capture` params() [auth]
+- `GET` `/api/camera/snapshot` params() [auth]
+- `GET` `/api/cameras/snapshot` params() [auth]
+- `GET` `/api/camera/video` params() [auth, upload]
+- `POST` `/api/test-ai` params() [auth]
+- `POST` `/api/test-ai-camera` params() [auth]
+- `POST` `/api/test-telegram` params() [auth]
+- `POST` `/api/test-ai-upload` params() [auth, upload]
+- `GET` `/health` params()
+- `GET` `/api/go2rtc/streams` params()
+- `GET` `/api/camera/frame` params() [cache]
+- `POST` `/analyze` params()

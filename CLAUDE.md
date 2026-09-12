@@ -27,6 +27,20 @@ Globally installed. Prefix **every** command with `rtk` — including in `&&` ch
 Examples: `rtk git diff`, `rtk cargo test`, `rtk grep pattern`, `rtk gh pr view 42`.
 Saves 60–90% tokens. Full reference: `~/.claude/CLAUDE.md`.
 
+## Code intelligence — the routing rule
+
+> **Code symbol, caller, or blast radius → CodeGraph.
+> What routes / env vars / libraries exist → `.codesight/`.
+> grep and read last.**
+
+CodeGraph answers "where is this symbol, what calls it, what breaks" from
+`.codegraph/` (1.6 MB SQLite, **gitignored**, built with `rtk codegraph init .`).
+`.codesight/` is the route/library/env-var inventory (32 KB markdown,
+**committed**, no local setup). **Commit the inventory, never the graph.**
+
+Setup, exclusions, the subagent trap, the validation ladder and how to regenerate
+the inventory: **[docs/claude/code-intelligence.md](docs/claude/code-intelligence.md)**.
+
 ## Conventions that bite
 
 These are the ones that fail a build, break a deploy, or produce a silently wrong
@@ -113,11 +127,14 @@ built later). Ordinary git operations are safe; that one is not.
 
 ## The two-tier config split
 
-`.claude/settings.json` is the **designated** committed team layer — anything a
-reviewer relies on belongs there. It does not exist yet; nothing team-wide has
-needed it. `.claude/settings.local.json` is personal and gitignored, and GSD's 18
-hooks live there. Never move a hook the other way: a hook that runs only on one
-machine is indistinguishable from a hook that does not exist.
+`.claude/settings.json` is the committed team layer — anything a reviewer relies on
+belongs there. It currently holds the `codegraph prompt-hook` and the
+`mcp__codegraph__*` permission grant. `.claude/settings.local.json` is personal and
+gitignored, and GSD's 18 hooks live there. Never move a hook the other way: a hook
+that runs only on one machine is indistinguishable from a hook that does not exist.
+
+The same split governs MCP: `.mcp.json` is committed, but which servers a given
+developer enables is personal. Committed config, personal activation.
 
 ## Known drift
 
@@ -125,6 +142,20 @@ machine is indistinguishable from a hook that does not exist.
   not exist anywhere in this repo.** Until it is written, treat the design system as
   undocumented and follow the existing templates in `fall_detection_web/templates/`
   rather than inventing rules. Do not cite that path as though it resolves.
+
+## Deliberately absent
+
+Each of these was considered and rejected for this repo's size, not overlooked.
+An unexplained absence gets "helpfully" added back; a recorded one does not.
+
+| Not here | Why | Add it when |
+|---|---|---|
+| a docs knowledge graph | the whole docs corpus is 6 files | docs pass ~30 markdown files |
+| automated PR review | 4 commits, no PR traffic yet | the first real PR arrives |
+| `lefthook` / `ruff` pre-commit | there are no tests to back a gate | a test suite exists |
+| a pinned env (devbox/nix) | one contributor, two `pip install` lines | a second contributor needs reproducibility |
+| CI regeneration of `.codesight/` | needs a GitHub App token in a branch ruleset | the repo gains branch protection |
+| a `SessionStart` banner hook | it would cost its own output every session forever, and this file already carries the routing rule | never, probably |
 
 ## Pointers
 

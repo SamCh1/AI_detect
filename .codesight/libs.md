@@ -1,0 +1,69 @@
+# Libraries
+
+- `fall_detection_web/ai.py`
+  - function image_to_data_url: (path) -> str
+  - function chat_url: (config, Any]) -> str
+  - function parse_ai_content: (data, Any]) -> str
+  - function parse_ai_sse: (text) -> str
+  - function parse_concatenated_json: (text) -> str
+  - function response_ai_content: (response) -> str
+  - _...6 more_
+- `fall_detection_web/app.py`
+  - function login_page: (request)
+  - function logout: ()
+  - function find_camera_by_name: (c, Any], camera_name) -> tuple[int, dict[str, Any]]
+  - function camera_snapshot_response: (index, refresh) -> Response
+  - function lifespan: (app)
+  - function favicon: ()
+- `fall_detection_web/auth.py`
+  - function configure_secret: (secret) -> None
+  - function hash_password: (plain) -> str
+  - function verify_password: (plain, hashed) -> bool
+  - function create_token: (username, expire_hours) -> str
+  - function decode_token: (token) -> str | None
+- `fall_detection_web/config.py`
+  - function normalize_go2rtc_source: (value) -> str
+  - function is_url: (value) -> bool
+  - function positive_int: (value, name) -> int
+  - function clamp_float: (value, min_val, max_val, name) -> float
+  - function migrate_config_json: () -> None
+  - function normalize_cameras: (config, Any]) -> list[dict[str, Any]]
+  - _...6 more_
+- `fall_detection_web/db.py`
+  - function ensure_data_dir: () -> None
+  - function get_conn: () -> Generator[sqlite3.Connection, None, None]
+  - function init_db: () -> None
+  - function now_iso: () -> str
+  - function local_iso: () -> str
+  - function cleanup_event_images: () -> None
+  - _...24 more_
+- `fall_detection_web/monitor.py`
+  - function get_backoff_seconds: (failures) -> int
+  - function set_state: (**updates) -> None
+  - function read_state: () -> dict[str, Any]
+  - function camera_snapshot_path: (index) -> Path
+  - function capture_rtsp_snapshot: (rtsp_url, output_path) -> Path
+  - function log_event: (config, Any], status_name, image_path, camera_config, Any] | None, **fields) -> None
+  - _...44 more_
+- `fall_detection_web/redis_cache.py`
+  - function get_client: (config, Any]) -> redis.Redis | None
+  - function get_cache: (key, config, Any]) -> str | None
+  - function set_cache: (key, value, expire_seconds, config, Any]) -> bool
+  - function delete_cache: (key, config, Any]) -> bool
+  - function clear_cache_pattern: (pattern, config, Any]) -> int
+- `fall_detection_web/teldrive.py`
+  - function enabled: (config, Any]) -> bool
+  - function check_token: (config, Any], token, base_url) -> dict[str, Any]
+  - function remote_folder: (config, Any], camera_name, kind) -> str
+  - function ensure_folder: (config, Any], folder) -> None
+  - function upload_file: (config, Any], local_path, folder, file_name) -> dict[str, Any]
+  - function upload_event_image: (config, Any], local_path, camera_name, file_name) -> dict[str, Any]
+  - _...4 more_
+- `simple_ai_vision/app.py`
+  - function error_response: (message, status_code, **extra) -> JSONResponse
+  - function provider_error_response: (exc) -> JSONResponse
+  - function upstream_error_response: (exc) -> JSONResponse
+  - function default_options: () -> dict[str, Any]
+  - function read_options: () -> dict[str, Any]
+  - function load_options: () -> dict[str, Any]
+  - _...54 more_
