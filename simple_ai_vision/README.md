@@ -1,95 +1,95 @@
 # Simple AI Vision
 
-Simple AI Vision là Home Assistant Add-on nhẹ để phân tích ảnh snapshot camera bằng AI Vision API, match keyword và gửi cảnh báo Telegram.
+Simple AI Vision is a lightweight Home Assistant add-on that analyses camera snapshots with an AI Vision API, matches keywords and sends Telegram alerts.
 
-Luồng chính:
+Main flow:
 
 ```text
-Frigate person event qua MQTT
+Frigate person event via MQTT
 -> POST /analyze
--> lấy snapshot từ go2rtc hoặc Frigate latest frame
+-> fetch a snapshot from go2rtc or the Frigate latest frame
 -> OpenAI-compatible Vision API
 -> keyword matching
 -> Telegram sendPhoto
--> ghi sự kiện
+-> write the event to the log
 ```
 
-Addon không tự polling camera mặc định. Home Assistant Automation là nơi quyết định khi nào cần gọi `/analyze`.
+By default the add-on does not poll cameras on its own. A Home Assistant automation decides when `/analyze` should be called.
 
-## Tính Năng
+## Features
 
-- Nhận trigger qua `POST /analyze`.
-- Hỗ trợ snapshot từ go2rtc `/api/frame.jpeg?src={camera}`.
-- Fallback snapshot từ Frigate API `/api/<camera>/latest.jpg`.
-- Gửi ảnh dạng `data:image/jpeg;base64,...` tới OpenAI-compatible `chat/completions`.
-- Hỗ trợ OpenAI, OpenRouter, 9Router, Gemini qua OpenAI-compatible gateway.
-- Match keyword hoặc regex, không phân biệt hoa thường.
-- Gửi Telegram bằng Bot API `sendPhoto`.
-- Nút test AI API và test Telegram riêng.
-- Tab Cameras để quản lý camera, bật/tắt monitor từng camera.
-- Load stream trực tiếp từ go2rtc.
-- Tab Live để xem live bằng snapshot refresh qua backend.
-- Tab Sự kiện để xem kết quả analyze: `sent`, `no_match`, `telegram_error`, lỗi network/config.
-- Config lưu tại `/data/simple_ai_vision_config.json`.
-- Event log lưu tại `/data/simple_ai_vision_events.jsonl`.
-- Không database, không object detection local, không RTSP decode, không ffmpeg processing.
+- Accepts triggers via `POST /analyze`.
+- Snapshot support from go2rtc `/api/frame.jpeg?src={camera}`.
+- Snapshot fallback from the Frigate API `/api/<camera>/latest.jpg`.
+- Sends images as `data:image/jpeg;base64,...` to an OpenAI-compatible `chat/completions` endpoint.
+- Supports OpenAI, OpenRouter, 9Router and Gemini through an OpenAI-compatible gateway.
+- Matches keywords or regular expressions, case-insensitively.
+- Sends to Telegram using the Bot API `sendPhoto` method.
+- Separate test buttons for the AI API and for Telegram.
+- Cameras tab for managing cameras and toggling Monitor per camera.
+- Loads streams directly from go2rtc.
+- Live tab for viewing a camera via backend snapshot refresh.
+- Events tab for reviewing analyze results: `sent`, `no_match`, `telegram_error`, and network/config errors.
+- Configuration stored at `/data/simple_ai_vision_config.json`.
+- Event log stored at `/data/simple_ai_vision_events.jsonl`.
+- No database, no local object detection, no RTSP decoding, no ffmpeg processing.
 
-## Cài Đặt
+## Installation
 
-1. Mở Home Assistant.
-2. Vào **Settings** -> **Add-ons** -> **Add-on Store**.
-3. Bấm menu **...** -> **Repositories**.
-4. Thêm repository:
+1. Open Home Assistant.
+2. Go to **Settings** -> **Add-ons** -> **Add-on Store**.
+3. Click the **...** menu -> **Repositories**.
+4. Add the repository:
 
 ```text
 https://github.com/minhhungtsbd/my_hass_addon_public
 ```
 
-5. Cài add-on **Simple AI Vision**.
-6. Bấm **Start**.
-7. Bấm **Open Web UI** để cấu hình.
+5. Install the **Simple AI Vision** add-on.
+6. Click **Start**.
+7. Click **Open Web UI** to configure it.
 
 ## Core Settings
 
-Các trường chính:
+The main fields:
 
-| Option | Mô tả |
+| Option | Description |
 | --- | --- |
-| `go2rtc_url` | Base URL go2rtc, ví dụ `http://homeassistant.local:1984` |
-| `go2rtc_host_url` | URL go2rtc mà trình duyệt truy cập được, ví dụ `http://192.168.1.101:1984` |
-| `frigate_url` | Base URL Frigate API nội bộ, ví dụ `http://ccab4aaf-frigate:5000` |
-| `frigate_host_url` | URL Frigate mà trình duyệt truy cập được, ví dụ `http://192.168.1.101:5000` |
-| `ai_api_key` | API key provider OpenAI-compatible |
-| `ai_base_url` | Base URL API, ví dụ `https://api.openai.com/v1` hoặc `https://9router.example/v1` |
-| `ai_model` | Model vision cần dùng |
+| `go2rtc_url` | go2rtc base URL, for example `http://homeassistant.local:1984` |
+| `go2rtc_host_url` | go2rtc URL reachable from the browser, for example `http://192.168.1.101:1984` |
+| `frigate_url` | Internal Frigate API base URL, for example `http://ccab4aaf-frigate:5000` |
+| `frigate_host_url` | Frigate URL reachable from the browser, for example `http://192.168.1.101:5000` |
+| `ai_api_key` | API key for the OpenAI-compatible provider |
+| `ai_base_url` | API base URL, for example `https://api.openai.com/v1` or `https://9router.example/v1` |
+| `ai_model` | The vision model to use |
 | `telegram_bot_token` | Telegram bot token |
-| `telegram_chat_id` | Chat ID nhận cảnh báo |
-| `prompt` | Prompt mặc định gửi cho AI nếu camera không chọn Prompt Profile |
-| `keyword_match` | Mỗi dòng là keyword hoặc regex |
-| `ai_timeout` | Thời gian chờ AI API, giây |
-| `snapshot_timeout` | Thời gian chờ snapshot, giây |
-| `telegram_timeout` | Thời gian chờ Telegram API, giây |
+| `telegram_chat_id` | Chat ID that receives the alerts |
+| `prompt` | Default prompt sent to the AI when a camera has no Prompt Profile selected |
+| `keyword_match` | One keyword or regular expression per line |
+| `ai_timeout` | AI API timeout, in seconds |
+| `snapshot_timeout` | Snapshot timeout, in seconds |
+| `telegram_timeout` | Telegram API timeout, in seconds |
 
-Timeout không phải lịch chạy tự động. Timeout chỉ là thời gian chờ tối đa cho từng request.
+A timeout is not a schedule. It is only the maximum time to wait for an individual request.
 
-Prompt gợi ý:
+Suggested prompt:
 
 ```text
-Bạn là hệ thống phân tích ảnh camera trong nhà.
+You are an indoor camera image analysis system.
 
-Nếu thấy người trong ảnh, chỉ trả lời:
-ALERT_PERSON: mô tả ngắn trong tối đa 20 từ.
+If you see a person in the image, reply only with:
+ALERT_PERSON: a short description in at most 20 words.
 
-Nếu không thấy người, chỉ trả lời:
+If you do not see a person, reply only with:
 NORMAL
 
-Không giải thích.
-Không hướng dẫn.
-Không viết code.
-Không nhắc đến Telegram.
+Do not explain.
+Do not give instructions.
+Do not write code.
+Do not mention Telegram.
 ```
 
-Keyword gợi ý:
+Suggested keywords:
 
 ```text
 ALERT_PERSON
@@ -100,37 +100,37 @@ cháy
 
 ## Cameras
 
-Mỗi camera có các trường:
+Each camera has the following fields:
 
-| Field | Mô tả |
+| Field | Description |
 | --- | --- |
-| `Monitor` | Bật/tắt theo dõi. Nếu tắt, `/analyze` sẽ trả `skipped: true` và không gọi AI |
-| `Name` | Tên hiển thị |
-| `go2rtc src` | Tên stream go2rtc, ví dụ `bep` |
-| `Prompt` | Prompt Profile riêng cho camera; để trống thì dùng Default Prompt |
+| `Monitor` | Enable or disable monitoring. When disabled, `/analyze` returns `skipped: true` and does not call the AI |
+| `Name` | Display name |
+| `go2rtc src` | go2rtc stream name, for example `bep` |
+| `Prompt` | A Prompt Profile specific to this camera; leave empty to use the Default Prompt |
 
-Nút trong tab Cameras:
+Buttons in the Cameras tab:
 
-- `Load go2rtc`: load stream từ `go2rtc_url/api/streams`.
-- `Add Stream`: thêm stream go2rtc đã chọn.
-- `Snapshot`: xem ảnh snapshot.
-- `Live`: xem snapshot refresh qua backend.
-- `Test`: gọi `/analyze` thủ công.
-- `Save Cameras`: lưu camera.
+- `Load go2rtc`: load streams from `go2rtc_url/api/streams`.
+- `Add Stream`: add the selected go2rtc stream.
+- `Snapshot`: view a snapshot image.
+- `Live`: view a backend snapshot refresh.
+- `Test`: call `/analyze` manually.
+- `Save Cameras`: save the cameras.
 
-Camera cấu hình bằng `go2rtc src`. Với Frigate fallback, `go2rtc src` chính là tên camera/stream trong Frigate, ví dụ `bep`.
+Cameras are configured with `go2rtc src`. With the Frigate fallback, `go2rtc src` is the camera or stream name in Frigate, for example `bep`.
 
 ## Prompt Profiles
 
-Tab **Prompt Profiles** hiển thị danh sách prompt đã lưu. Dùng `Add Prompt` hoặc `Edit` để mở modal tạo/sửa prompt có tiêu đề, ví dụ `Cong`, `Bep`, `Thu cung`.
+The **Prompt Profiles** tab lists the saved prompts. Use `Add Prompt` or `Edit` to open a modal for creating or editing a titled prompt, for example `Cong`, `Bep`, `Thu cung`.
 
-Khi thêm camera, chọn tiêu đề prompt tương ứng trong cột `Prompt`. Nhiều camera có thể dùng chung một Prompt Profile. Nếu camera không chọn profile, add-on dùng `Default Prompt` trong Core Settings.
+When adding a camera, select the matching prompt title in the `Prompt` column. Several cameras can share one Prompt Profile. If a camera has no profile selected, the add-on uses the `Default Prompt` from Core Settings.
 
 ## Home Assistant Automation
 
-Addon không tự chạy nền. Muốn tự động thì Home Assistant Automation cần gọi `/analyze`.
+The add-on does not run in the background on its own. To automate it, a Home Assistant automation needs to call `/analyze`.
 
-Ví dụ `rest_command`:
+Example `rest_command`:
 
 ```yaml
 rest_command:
@@ -141,7 +141,7 @@ rest_command:
     payload: "{{ payload }}"
 ```
 
-Ví dụ automation dùng chung cho mọi camera Frigate:
+Example automation shared by every Frigate camera:
 
 ```yaml
 automation:
@@ -162,9 +162,9 @@ automation:
     mode: single
 ```
 
-Nếu đã cấu hình danh sách camera trong tab Cameras, `/analyze` chỉ xử lý camera có trong danh sách đó. Camera chưa thêm vào Simple AI Vision sẽ được bỏ qua.
+If you have configured a camera list in the Cameras tab, `/analyze` only handles cameras that appear in that list. Cameras that have not been added to Simple AI Vision are skipped.
 
-Nếu `127.0.0.1:8000` không gọi được từ Home Assistant, dùng IP/hostname của máy chạy add-on:
+If `127.0.0.1:8000` is not reachable from Home Assistant, use the IP or hostname of the machine running the add-on:
 
 ```text
 http://<home-assistant-ip>:8000/analyze
@@ -178,7 +178,7 @@ Web UI:
 GET /
 ```
 
-Config và test:
+Configuration and tests:
 
 ```http
 GET /api/config
@@ -206,18 +206,18 @@ Content-Type: application/json
 }
 ```
 
-Response match:
+Response on a match:
 
 ```json
 {
   "success": true,
   "matched": true,
   "matched_keyword": "ALERT_PERSON",
-  "analysis": "ALERT_PERSON: Có người đang ngồi trước bàn."
+  "analysis": "ALERT_PERSON: A person is sitting at the desk."
 }
 ```
 
-Response không match:
+Response with no match:
 
 ```json
 {
@@ -228,7 +228,7 @@ Response không match:
 }
 ```
 
-Response camera tắt Monitor:
+Response for a camera with Monitor disabled:
 
 ```json
 {
@@ -239,42 +239,42 @@ Response camera tắt Monitor:
 }
 ```
 
-## Tab Live
+## Live Tab
 
-Tab Live dùng snapshot refresh qua Simple AI Vision backend. Cách này hoạt động với Frigate add-on hostname nội bộ như `ccab4aaf-frigate`.
+The Live tab uses a snapshot refresh through the Simple AI Vision backend. This works with internal Frigate add-on hostnames such as `ccab4aaf-frigate`.
 
-Trong tab Live có thể đổi `View Mode` để thử đường truy cập khác nhau:
+In the Live tab you can change `View Mode` to try different access paths:
 
-- `Backend snapshot`: browser gọi Simple AI Vision, add-on tự lấy snapshot từ go2rtc/Frigate.
-- `go2rtc URL stream`: browser thử mở stream từ `go2rtc_url`.
-- `go2rtc Host stream`: browser thử mở stream từ `go2rtc_host_url`.
-- `Frigate URL latest image`: browser thử lấy ảnh mới nhất từ `frigate_url`.
-- `Frigate Host latest image`: browser thử lấy ảnh mới nhất từ `frigate_host_url`.
+- `Backend snapshot`: the browser calls Simple AI Vision, and the add-on fetches the snapshot from go2rtc or Frigate itself.
+- `go2rtc URL stream`: the browser tries to open the stream from `go2rtc_url`.
+- `go2rtc Host stream`: the browser tries to open the stream from `go2rtc_host_url`.
+- `Frigate URL latest image`: the browser tries to fetch the latest image from `frigate_url`.
+- `Frigate Host latest image`: the browser tries to fetch the latest image from `frigate_host_url`.
 
-## Tab Sự Kiện
+## Events Tab
 
-Tab Sự kiện đọc file:
+The Events tab reads this file:
 
 ```text
 /data/simple_ai_vision_events.jsonl
 ```
 
-Các trạng thái thường gặp:
+Common statuses:
 
-| Status | Ý nghĩa |
+| Status | Meaning |
 | --- | --- |
-| `sent` | Đã match keyword và gửi Telegram thành công |
-| `no_match` | AI trả lời nhưng không khớp keyword |
-| `telegram_error` | Match keyword nhưng Telegram lỗi |
-| `config_error` | Thiếu hoặc sai cấu hình |
-| `timeout` | Timeout mạng |
-| `upstream_error` | API upstream trả HTTP error |
-| `network_error` | Lỗi network |
-| `internal_error` | Lỗi không mong muốn |
+| `sent` | A keyword matched and the Telegram message was sent successfully |
+| `no_match` | The AI replied but nothing matched a keyword |
+| `telegram_error` | A keyword matched but Telegram returned an error |
+| `config_error` | Configuration is missing or wrong |
+| `timeout` | Network timeout |
+| `upstream_error` | The upstream API returned an HTTP error |
+| `network_error` | Network error |
+| `internal_error` | Unexpected error |
 
 ## Telegram
 
-Addon gửi ảnh bằng Telegram Bot API `sendPhoto`.
+The add-on sends images using the Telegram Bot API `sendPhoto` method.
 
 Caption:
 
@@ -284,9 +284,9 @@ Camera: <camera>
 <AI analysis result>
 ```
 
-Nút `Test Telegram` gửi tin nhắn text để kiểm tra token/chat ID trước khi test camera.
+The `Test Telegram` button sends a text message so you can verify the token and chat ID before testing a camera.
 
-## Kiểm Tra Nhanh
+## Quick Check
 
 ```bash
 curl -X POST http://<home-assistant-ip>:8000/analyze \

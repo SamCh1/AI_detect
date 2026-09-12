@@ -60,8 +60,13 @@ result. The full constraint lists live in each app's `AGENTS.md`.
 
 7. **AI providers must be OpenAI-compatible**, image input as a base64 data URL.
 
-8. **UTF-8 everywhere.** The READMEs are Vietnamese; the `AGENTS.md` files are
-   English. Do not "fix" either by translating.
+8. **UTF-8 everywhere, and all prose docs are English.** A handful of strings stay
+   Vietnamese on purpose because they are *data, not prose* — do not "fix" them:
+   the `cháy` entry in the Simple AI Vision keyword list (it matches Vietnamese AI
+   output, and English `fire` is already a separate entry), camera and go2rtc
+   stream names such as `bep` and `h9ccam2_sub`, prompt-profile titles, and the
+   automation aliases in the README examples. Translating an identifier changes
+   behaviour; translating a caption does not.
 
 ## Running and verifying
 
