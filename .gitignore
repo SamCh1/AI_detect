@@ -1,0 +1,16 @@
+# GSD planning artifacts — local-only by choice.
+# Paired with planning.commit_docs=false and planning.search_gitignored=true
+# in .planning/config.json (see gsd-core docs/how-to/keep-planning-docs-private.md).
+# search_gitignored keeps GSD's own searches reading these despite the ignore.
+.planning/
+
+# Code-intelligence index. Machine-local, non-deterministic, ~15-20MB.
+# Commit the inventory (.codesight/), never the graph.
+.codegraph/
+
+# Claude Code personal layer. Committed team config is .claude/settings.json.
+.claude/settings.local.json
+
+# Python
+__pycache__/
+*.pyc
