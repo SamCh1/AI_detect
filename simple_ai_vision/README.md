@@ -42,7 +42,7 @@ By default the add-on does not poll cameras on its own. A Home Assistant automat
 4. Add the repository:
 
 ```text
-https://github.com/minhhungtsbd/my_hass_addon_public
+https://github.com/SamCh1/AI_detect
 ```
 
 5. Install the **Simple AI Vision** add-on.
@@ -176,6 +176,7 @@ Web UI:
 
 ```http
 GET /
+GET /health
 ```
 
 Configuration and tests:
@@ -297,6 +298,11 @@ curl -X POST http://<home-assistant-ip>:8000/analyze \
 ## Frigate Add-on Streams
 
 Simple AI Vision can discover camera names from the Frigate add-on when loading go2rtc streams. It tries the configured `go2rtc_url` first, then Frigate built-in go2rtc on port `1984`, then Frigate API on port `5000`.
+
+Add-on discovery asks the Supervisor which add-ons are installed, which needs the
+`hassio_api` grant in the add-on manifest. That grant was missing before **1.4.17**, so
+on older versions discovery always came back empty and only logged a warning — set
+`frigate_url` by hand there, or update.
 
 Use the optional `frigate_url` setting when auto-discovery cannot find the Frigate add-on, for example:
 

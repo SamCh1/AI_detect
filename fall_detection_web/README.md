@@ -36,50 +36,67 @@ Camera / RTSP / go2rtc
 Open a terminal and run the following commands to create the directory, fetch the source, and install Python and the required libraries:
 
 ```bash
-# 1. Create the project directory under /opt
-sudo mkdir -p /opt
+# 1. Clone the repository into /opt
 cd /opt
+sudo git clone https://github.com/SamCh1/AI_detect.git
 
-# 2. Clone the source from GitHub using an SSH key
-sudo git clone git@github.com:MyRepo/my_hass_addon_public.git
-cd my_hass_addon_public/fall_detection_web
+# Give the current user (for example root or ubuntu) ownership so it runs without sudo
+sudo chown -R $USER:$USER /opt/AI_detect
+cd /opt/AI_detect
 
-# Give the current user (for example root or ubuntu) ownership of the directory so it can run without sudo
-sudo chown -R $USER:$USER /opt/my_hass_addon_public
+# 2. Install uv -- the only prerequisite. It installs Python 3.11 itself.
+curl -LsSf https://astral.sh/uv/install.sh | sh
+sudo apt update && sudo apt install -y make
 
-# 3. Install Python 3, pip and venv (if not already present)
-sudo apt update
-sudo apt install -y python3 python3-pip python3-venv
+# 3. Create the virtualenv and install the locked dependencies
+make setup
 
-# 4. Create and activate a Python virtual environment
-python3 -m venv venv
-source venv/bin/activate
-
-# 5. Install the dependencies
-pip install --upgrade pip
-pip install -r requirements.txt
-
-# 6. Run the web application as a test
-uvicorn app:app --host 0.0.0.0 --port 8090
+# 4. Run the web application as a test
+make dev-fall
 ```
+
+`make setup` creates `fall_detection_web/.venv` from `uv.lock`, installs the CPU
+PyTorch wheels, and copies `.env.example` to `fall_detection_web/.env` if it is absent.
+`make doctor` tells you what is missing if anything fails.
+
+> **Already running the old layout?** These instructions describe a fresh install.
+> An existing deployment built with `python3 -m venv venv` + `pip install` needs
+> both its directory and its systemd unit changed — follow
+> [`../docs/vps-migration-uv.md`](../docs/vps-migration-uv.md), which migrates
+> side by side and keeps the running service until the new one is verified.
+
+Do not install Python by hand — `uv` manages the 3.11 interpreter both apps pin in
+`.python-version`. To do it without `make`:
+
+```bash
+cd /opt/AI_detect/fall_detection_web
+uv sync --locked
+uv run uvicorn app:app --host 0.0.0.0 --port 8090
+```
+
+The repository holds two independent apps; cloning gives you both. `simple_ai_vision`
+is a Home Assistant add-on and is not used here — see the
+[repository README](../README.md).
 
 ### 2. On Windows (PowerShell)
 
 Open PowerShell in the project directory and run:
 
 ```powershell
-# 1. Create a Python virtual environment
-python -m venv venv
+# 1. Install uv (installs Python 3.11 itself)
+powershell -c "irm https://astral.sh/uv/install.ps1 | iex"
 
-# 2. Activate the virtual environment
-.\venv\Scripts\Activate.ps1
+# 2. Create the virtualenv from the lockfile, inside the app directory
+cd fall_detection_web
+uv sync --locked
 
-# 3. Install the dependencies
-pip install -r requirements.txt
-
-# 4. Run the web application
-uvicorn app:app --host 0.0.0.0 --port 8090
+# 3. Run the web application
+uv run uvicorn app:app --host 0.0.0.0 --port 8090
 ```
+
+`uvicorn app:app` is a bare module reference resolved against the current directory, so
+it must be run from inside `fall_detection_web`. Starting it at the repository root
+picks up the *other* app's `app.py`.
 
 Once it is running, open the interface in a browser:
 * Address: `http://<IP-SERVER>:8090` or `http://localhost:8090`
@@ -254,8 +271,8 @@ To have the application start with the VPS and keep running in the background, c
 
    [Service]
    User=root
-   WorkingDirectory=/opt/my_hass_addon_public/fall_detection_web
-   ExecStart=/opt/my_hass_addon_public/fall_detection_web/venv/bin/uvicorn app:app --host 0.0.0.0 --port 8090 --no-access-log
+   WorkingDirectory=/opt/AI_detect/fall_detection_web
+   ExecStart=/opt/AI_detect/fall_detection_web/.venv/bin/uvicorn app:app --host 0.0.0.0 --port 8090 --no-access-log
    Restart=always
    RestartSec=5
 

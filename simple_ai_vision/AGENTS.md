@@ -1,214 +1,130 @@
-# AGENTS.md
+# AGENTS.md — Simple AI Vision
 
-## Project Overview
+Per-app rules for `simple_ai_vision/`. Repo-wide rules (RTK, code intelligence, the
+two-app split, UTF-8 policy) live in [`../CLAUDE.md`](../CLAUDE.md) — read that first.
 
-This project is a lightweight Home Assistant Add-on for AI camera snapshot analysis.
-Always use UTF-8
+## What this is
 
-Workflow:
+A Home Assistant add-on that analyses camera snapshots. One trigger path:
 
-Home Assistant Motion Trigger
-→ go2rtc Snapshot
-→ AI Vision API
-→ Keyword Matching
-→ Telegram Alert
+```
+HA motion trigger → go2rtc snapshot → AI Vision API → keyword match → Telegram alert
+```
 
-The project is intentionally minimal.
+~2,650 lines of Python in two files, 10 routes, three pip dependencies. The
+minimalism is the product, not a stage it is growing out of.
 
----
+## Files
 
-## Core Principles
+| File | Lines | What it holds |
+|---|---|---|
+| `app.py` | 1,181 | Everything: routes, go2rtc fetch, AI call, keyword match, Telegram |
+| `ui.py` | 1,470 | A single `INDEX_HTML = r"""…"""` raw string — the entire web UI |
+| `config.yaml` | — | Add-on manifest. **The `version:` field gates every update.** |
+| `Dockerfile` | — | `python:3.11-alpine`, installs requirements, runs `run.sh` |
+| `run.sh` | — | `exec uvicorn app:app --host 0.0.0.0 --port 8000` |
 
-ALWAYS prioritize:
+There is no `templates/`, no `static/`, no framework. The UI is served by returning
+`INDEX_HTML` from `GET /`. That is why the DO-NOT-ADD list below is enforceable:
+adding a frontend build step would require inventing a whole layer that isn't here.
 
-* simplicity
-* low resource usage
-* maintainability
-* fast startup
-* low RAM usage
-* low CPU usage
+## Run it
 
-Avoid unnecessary abstraction.
+`make dev-vision` from the repo root, on :8000. Setup (`uv`, the pinned 3.11, the
+per-app `.venv`) is in [`../AGENTS.md`](../AGENTS.md).
 
----
+## The dependency ceiling
 
-## DO NOT ADD
+`pyproject.toml` declares exactly three dependencies — `fastapi`, `uvicorn`,
+`requests` — plus stdlib, pinned by `uv.lock`. `requirements.txt` beside it is a
+**generated** export consumed by the Dockerfile; never hand-edit it, change
+`pyproject.toml` and run `make lock`. **Adding a dependency here is a design change, not an implementation detail** —
+raise it rather than doing it.
 
-Never introduce:
+Never introduce: React · Vue · any frontend SPA or build step · websockets ·
+database · ORM · Redis · Celery · background worker queues · Frigate integration ·
+object detection models · TensorFlow · PyTorch · OpenCV · RTSP decoding ·
+ffmpeg · authentication systems · user management · plugin systems.
 
-* React
-* Vue
-* frontend SPA
-* websocket systems
-* database
-* ORM
-* Redis
-* Celery
-* Frigate integration
-* object detection models
-* TensorFlow
-* PyTorch
-* OpenCV heavy pipelines
-* RTSP decoding
-* ffmpeg processing
-* authentication systems
-* user management
-* background worker queues
-* complex plugin systems
+This add-on analyses JPEG snapshots. That is the whole scope.
 
-This addon only analyzes JPEG snapshots.
+**Targets:** under 150 MB RAM idle, minimal CPU, no persistent background loops. The
+add-on stays idle until triggered.
 
----
+## State lives in `/data`
 
-## Approved Stack
+There is no database, but there *is* persistence — two files on the add-on's `/data`
+volume:
 
-Allowed libraries:
+- `/data/simple_ai_vision_config.json` — UI-edited options
+- `/data/simple_ai_vision_events.jsonl` — append-only event log
 
-* FastAPI
-* requests
-* uvicorn
-* paho-mqtt
-* standard library modules
+Use these. Do not reach for SQLite because "it needs to persist something."
 
-Avoid adding dependencies unless absolutely necessary.
+## Routes
 
-MQTT is allowed only as an optional integration for publishing addon events.
-Do not use MQTT as a required runtime dependency for core snapshot analysis.
-Avoid persistent MQTT subscriber loops unless explicitly requested.
+`POST /analyze` is the workhorse — the trigger endpoint HA calls. The rest exist to
+serve and configure the UI:
 
----
+| Method | Path | |
+|---|---|---|
+| GET | `/health` | liveness |
+| GET | `/` | returns `INDEX_HTML` |
+| GET · POST | `/api/config` | read / write `/data/…config.json` |
+| GET | `/api/go2rtc/streams` | stream discovery |
+| GET | `/api/events` | reads the `.jsonl` log |
+| GET | `/api/camera/frame` | snapshot proxy |
+| POST | `/api/test-ai` · `/api/test-telegram` | UI connection tests |
+| POST | `/analyze` | **the trigger path** |
 
-## Snapshot Source
+Keep it flat. No routers, no versioning, no REST resource modelling.
 
-Snapshots MUST come from go2rtc:
+## External contracts
 
-/api/frame.jpeg?src={camera}
+- **Snapshots come from go2rtc** (`/api/frame.jpeg?src={camera}`) or an HA camera
+  entity. Never hand-roll RTSP decoding here.
+- **AI providers must be OpenAI-compatible** — OpenAI, OpenRouter, 9Router, Gemini
+  OpenAI-compatible gateways. Image input is a **base64 data URL**.
+- **Telegram via Bot API**, `sendPhoto` preferred.
+- **HA Supervisor** via `SUPERVISOR_TOKEN` from the environment. There is no inbound
+  auth layer and none is wanted — the add-on runs behind HA ingress
+  (`ingress: true`, `homeassistant_api: true` in `config.yaml`).
 
-Do NOT implement RTSP decoding manually.
+## Releasing a change
 
----
+**Every change to this directory must bump `config.yaml`'s `version`.** The HA Add-on
+Store keys its update offer off that field, so an unbumped change never reaches a
+user — it fails silently, which is the worst failure mode in this repo.
 
-## AI API Requirements
+```bash
+make bump            # patch bump
+make bump V=1.5.0    # explicit version
+```
 
-Use OpenAI-compatible APIs only.
+The inverse also holds: a change to `fall_detection_web/` must **not** touch this
+version.
 
-Compatible providers include:
+Add-ons must stay clean on **amd64 and aarch64** — no distro-specific assumptions, no
+x86-only wheels.
 
-* OpenAI
-* OpenRouter
-* 9Router
-* Gemini OpenAI-compatible gateways
+## Style
 
-Image input format:
-base64 data URL
+Short functions, explicit logic, functional over class-based, minimal abstraction. No
+enterprise architecture.
 
----
+Always handle: snapshot timeout · AI API timeout · Telegram failure · invalid camera
+name · invalid JSON · network errors. Return clean JSON.
 
-## Telegram
+Log stage transitions only — snapshot fetched, AI requested, keyword matched, Telegram
+sent, errors. No debug spam.
 
-Use Telegram Bot API only.
+## Not implemented, on purpose
 
-Preferred method:
-sendPhoto
+| Not here | Why | If you add it |
+|---|---|---|
+| MQTT | no code path, not in `requirements.txt` | optional publish-only integration, never a required runtime dependency for snapshot analysis, and no persistent subscriber loop |
 
----
+## Verifying your work
 
-## Performance Targets
-
-Target resource usage:
-
-* RAM under 150MB idle
-* Minimal CPU usage
-* No persistent background loops
-
-The addon should remain mostly idle until triggered.
-
----
-
-## API Design
-
-Keep API minimal.
-
-Primary endpoint:
-
-POST /analyze
-
-No complex REST architecture.
-
-No auth layer.
-
----
-
-## Error Handling
-
-Always handle:
-
-* snapshot timeout
-* AI API timeout
-* Telegram failure
-* invalid camera name
-* invalid JSON
-* network errors
-
-Return clean JSON responses.
-
----
-
-## Logging
-
-Use concise logs.
-
-Avoid excessive debug spam.
-
-Log important stages only:
-
-* snapshot fetch
-* AI request
-* keyword match
-* Telegram sent
-* errors
-
----
-
-## Coding Style
-
-Prefer:
-
-* short functions
-* readable code
-* explicit logic
-* minimal abstraction
-
-Avoid:
-
-* enterprise architecture
-* overengineering
-* unnecessary classes
-
-Functional style preferred.
-
----
-
-## Home Assistant Compatibility
-
-Addon must remain compatible with:
-
-* Home Assistant OS
-* Supervisor Add-ons
-* amd64
-* aarch64
-
-Avoid distro-specific assumptions.
-
----
-
-## GitHub Updates
-
-After each source code update, commit the changes and push them to GitHub.
-Increase the add-on version in `simple_ai_vision/config.yaml` for every update.
-
----
-
-## Final Goal
-
-A lightweight production-ready AI snapshot notifier for Home Assistant using go2rtc and AI Vision APIs.
+There is no test suite — see rule 4 in [`../AGENTS.md`](../AGENTS.md). `make check`
+byte-compiles and proves syntax, nothing more.

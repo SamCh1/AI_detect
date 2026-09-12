@@ -1,0 +1,48 @@
+# fall_detection_web -- dependency contract. uv is the source of truth.
+#
+#   uv sync            create .venv on 3.11 and install exactly uv.lock
+#   uv run uvicorn app:app --port 8090
+#
+# requirements.txt next to this file is a GENERATED export of uv.lock, kept for
+# the VPS deploy (venv + systemd) which installs with pip. Regenerate it with
+# `make lock` -- never hand-edit it.
+[project]
+name = "fall-detection-web"
+version = "0.1.0"
+description = "RTSP -> YOLOv8 -> AI verify -> Telegram + video"
+requires-python = "==3.11.*"
+dependencies = [
+    "fastapi",
+    "uvicorn[standard]",
+    "requests",
+    "torch==2.5.1",
+    "torchvision==0.20.1",
+    "opencv-python-headless==4.10.0.84",
+    "ultralytics==8.3.59",
+    "python-multipart",
+    "bcrypt",
+    "python-jose[cryptography]",
+    "jinja2",
+    "psutil",
+    "redis",
+]
+
+# Flat modules (app.py, ai.py, db.py ...), not an installable package. Without
+# this uv tries to build the app itself and fails on "multiple top-level modules".
+[tool.uv]
+package = false
+
+# torch publishes +cpu builds on its own index for linux-x86_64 and windows ONLY.
+# linux-aarch64 gets a plain 2.5.1 there; macOS gets a plain 2.5.1 from PyPI and
+# is CPU-only anyway. Declaring it this way lets ONE uv.lock serve all of them --
+# this replaces the old `sed -e 's/+cpu//'` rewrite, which only knew about macOS
+# and would have installed the wrong wheel on an ARM Linux host.
+# `explicit = true` keeps every other package off the pytorch index.
+[[tool.uv.index]]
+name = "pytorch-cpu"
+url = "https://download.pytorch.org/whl/cpu"
+explicit = true
+
+[tool.uv.sources]
+torch = [{ index = "pytorch-cpu", marker = "sys_platform == 'linux' or sys_platform == 'win32'" }]
+torchvision = [{ index = "pytorch-cpu", marker = "sys_platform == 'linux' or sys_platform == 'win32'" }]
