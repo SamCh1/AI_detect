@@ -1,0 +1,35 @@
+# simple_ai_vision -- Home Assistant add-on. uv is the source of truth.
+#
+#   uv sync            create .venv on 3.11 and install exactly uv.lock
+#   uv run uvicorn app:app --port 8000
+#
+# THREE dependencies. That ceiling is the point (CLAUDE.md #3, and the
+# ~25-entry DO-NOT-ADD list in AGENTS.md). Adding a fourth is a design change,
+# not a chore -- and uv.lock now makes an accidental one impossible to install
+# rather than merely discouraged.
+#
+# requirements.txt next to this file is a GENERATED export of uv.lock, consumed
+# by the Dockerfile's `pip install -r requirements.txt`. Regenerate it with
+# `make lock` -- never hand-edit it.
+#
+# 3.11 matches the Dockerfile's BUILD_FROM default (python:3.11-alpine), so a
+# local venv and the shipped container now run the same interpreter. The HA
+# supervisor substitutes its own per-arch base at build time; it is 3.11-based.
+[project]
+name = "simple-ai-vision"
+version = "0.1.0"
+description = "Home Assistant add-on: camera snapshot -> AI vision -> answer"
+requires-python = "==3.11.*"
+dependencies = [
+    "fastapi==0.111.0",
+    "uvicorn==0.30.1",
+    "requests==2.32.3",
+]
+
+# The add-on's SHIPPED version lives in config.yaml and is bumped by `make bump`
+# -- the HA Add-on Store keys updates off it. The number above is inert
+# packaging metadata; do not treat the two as related.
+
+# Flat modules (app.py, ui.py), not an installable package.
+[tool.uv]
+package = false

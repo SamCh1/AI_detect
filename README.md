@@ -1,113 +1,132 @@
-# Home Assistant Add-ons
+# AI_detect
 
-This repository contains public Home Assistant add-ons.
+Two independent AI camera applications that share a git remote and nothing else — no
+shared code, no shared dependencies, no shared runtime.
 
-## Add-ons
+| | [Simple AI Vision](./simple_ai_vision) | [Fall Detection Web](./fall_detection_web) |
+|---|---|---|
+| **What** | Home Assistant add-on | Standalone web app |
+| **Does** | Snapshot → AI Vision → keyword match → Telegram | RTSP → YOLOv8 → AI verify → Telegram + recorded video |
+| **Stack** | FastAPI + requests + uvicorn | FastAPI, torch/ultralytics (CPU), SQLite, Redis, Teldrive |
+| **Runs on** | Alpine container via HA Supervisor, port 8000 | venv + systemd on a VPS, port 8090 |
+| **Triggered by** | a Home Assistant automation calling `/analyze` | its own capture threads, continuously |
+| **Docs** | [`simple_ai_vision/README.md`](./simple_ai_vision/README.md) | [`fall_detection_web/README.md`](./fall_detection_web/README.md) |
 
-| Add-on | Description |
-| --- | --- |
-| [Simple AI Vision](./simple_ai_vision) | Lightweight add-on that analyses camera snapshots with an AI Vision API, matches keywords and sends Telegram alerts. |
-| [Fall Detection Web](./fall_detection_web) | Standalone web UI for running YOLO person detection, AI fall verification and Telegram alerts on a VPS or server. |
+Pick the one you need — each README is self-contained. This file covers only what
+applies to the repository as a whole.
 
 ## Simple AI Vision
 
-Main processing flow:
+A lightweight add-on that answers one question about one JPEG: *does this snapshot
+match something I care about?*
 
 ```text
-Home Assistant motion/sensor trigger
--> POST /analyze
--> go2rtc or Home Assistant Generic Camera snapshot
--> OpenAI-compatible Vision API
--> keyword matching
--> Telegram sendPhoto
--> event log and optional MQTT publish
+HA automation trigger (typically a Frigate person event on MQTT)
+  → POST /analyze  {"camera": "bep"}
+  → snapshot from go2rtc, falling back to Frigate's latest frame
+  → OpenAI-compatible Vision API
+  → keyword matching
+  → Telegram sendPhoto + event log
 ```
 
-By default this add-on does not poll cameras on its own. A Home Assistant automation decides when `/analyze` should be called.
+It does not poll cameras. A Home Assistant automation decides when `/analyze` runs, so
+the add-on stays idle — and under 150 MB of RAM — until something asks it a question.
+The trigger is usually a Frigate person event on MQTT, handled entirely by the HA
+automation; the add-on itself speaks only HTTP and takes a single `camera` name.
 
-Key features:
+Cameras, prompt profiles, keywords and credentials are managed from the built-in web
+UI. Full settings reference, API, and automation examples:
+[`simple_ai_vision/README.md`](./simple_ai_vision/README.md).
 
-- Manage cameras from the web UI.
-- Enable or disable Monitor per camera.
-- Snapshot support from a go2rtc `src` or a Home Assistant camera entity.
-- go2rtc takes priority when a camera has both `src` and `entity_id`.
-- Load camera entities, go2rtc streams and motion/sensor triggers from Home Assistant.
-- Generate a sample YAML automation for the selected trigger.
-- Live tab for viewing a camera via entity, go2rtc, or both.
-- Events tab for reviewing the analyze log.
-- Optional MQTT publishing of event JSON.
-- Test AI API, Test Telegram, and per-camera test actions.
+### Install it in Home Assistant
 
-Full documentation: [simple_ai_vision/README.md](./simple_ai_vision/README.md)
+1. **Settings → Add-ons → Add-on Store**.
+2. Open the **⋮** menu (top right) → **Repositories**.
+3. Add: `https://github.com/SamCh1/AI_detect`
+4. **Add**, then find **Simple AI Vision** in the store.
+5. **Install**, **Start**, then **Open Web UI** to configure it.
 
-## Installing the Repository
+You will need Home Assistant OS or Supervised (the Add-on Store must be available), an
+API key from an OpenAI-compatible vision provider, and a Telegram bot token and chat
+ID. Snapshots come from go2rtc or Frigate — one of the two must be reachable.
 
-1. Open Home Assistant.
-2. Go to **Settings** -> **Add-ons** -> **Add-on Store**.
-3. Click the **...** menu in the top right.
-4. Select **Repositories**.
-5. Add the repository URL:
-6. Click **Add**.
-7. Find the **Simple AI Vision** add-on in the Add-on Store.
-8. Install it, then click **Start**.
-9. Open **Open Web UI** to configure it.
+## Fall Detection Web
 
-## Requirements
-
-- Home Assistant OS or Supervised, with the Add-on Store available.
-- go2rtc if you want snapshots or video taken directly from a stream.
-- A Home Assistant camera entity if you want to use Generic Camera snapshots.
-- An API key from an OpenAI-compatible provider with vision support.
-- A Telegram bot token and chat ID.
-- An MQTT broker if you enable the MQTT publish option.
-
-## Calling It From a Home Assistant Automation
-
-Add a `rest_command`:
-
-```yaml
-rest_command:
-  simple_ai_vision_analyze:
-    url: "http://127.0.0.1:8000/analyze"
-    method: post
-    content_type: "application/json"
-    payload: "{{ payload }}"
-```
-
-Example using a go2rtc source:
-
-```yaml
-automation:
-  - alias: "Simple AI Vision - Bếp"
-    trigger:
-      - platform: state
-        entity_id: binary_sensor.motion_bep
-        to: "on"
-    action:
-      - service: rest_command.simple_ai_vision_analyze
-        data:
-          payload: '{"camera":"bep"}'
-    mode: single
-```
-
-Example using a Home Assistant camera entity:
-
-```yaml
-automation:
-  - alias: "Simple AI Vision - Bếp Entity"
-    trigger:
-      - platform: state
-        entity_id: binary_sensor.motion_bep
-        to: "on"
-    action:
-      - service: rest_command.simple_ai_vision_analyze
-        data:
-          payload: '{"entity_id":"camera.camera_bep_go2rtc"}'
-    mode: single
-```
-
-If `127.0.0.1:8000` is not reachable from Home Assistant, use the IP or hostname of the machine running the add-on:
+A multi-camera monitoring app that watches continuously rather than waiting to be
+asked.
 
 ```text
-http://<home-assistant-ip>:8000/analyze
+RTSP / go2rtc streams
+  → threaded YOLOv8 person detection (CPU)
+  → AI Vision scene validation
+  → verdict: SAFE | EMERGENCY
+  → Telegram photo alert
+  → incident video → Teldrive upload
+  → timeline, recordings hub, dashboard
 ```
+
+It is **not** a Home Assistant add-on and is not installed through the Add-on Store.
+It runs as a normal Python service — typically under systemd on a VPS, behind a login.
+Setup, go2rtc, Teldrive and Redis instructions:
+[`fall_detection_web/README.md`](./fall_detection_web/README.md).
+
+## Local development
+
+New here? [`docs/getting-started.md`](docs/getting-started.md) is the walkthrough —
+installing `uv`, what a healthy first run prints, and the fixes for the handful of
+things that go wrong. The summary below is the reference version.
+
+```bash
+make setup    # both venvs + .env, then a readiness report — start here
+make doctor   # what is installed, what is missing, what to run next
+make dev      # run both apps together, labelled streams
+make logs     # follow app.log and any running container
+make help     # every target
+```
+
+`make dev-vision` (:8000) and `make dev-fall` (:8090) run one app alone.
+
+Two things the Makefile exists to enforce:
+
+- **`uv` is the only prerequisite.** It installs Python 3.11 itself — do not install
+  Python by hand. Both apps pin 3.11 via `.python-version`, matching the add-on's
+  `python:3.11-alpine` image, so a local venv and the shipped container run the same
+  interpreter.
+- **One virtualenv per app, inside the app.** `simple_ai_vision/.venv` holds exactly
+  three packages; `fall_detection_web/.venv` holds torch and YOLO. Sharing one env
+  would silently let the add-on import dependencies it must never ship with, and
+  `uv.lock` now makes an accidental one impossible to install rather than merely
+  discouraged.
+- **`requirements.txt` is generated, never hand-edited.** Both apps resolve through
+  `pyproject.toml` + `uv.lock`; `make lock` re-resolves and re-exports. The exports
+  exist because both deploy paths still install with pip — the add-on's Dockerfile and
+  the VPS systemd venv.
+
+There is no test suite, linter or CI. `make check` byte-compiles both apps, which
+proves they parse and nothing more.
+
+## Repository layout
+
+```text
+simple_ai_vision/      the Home Assistant add-on
+fall_detection_web/    the standalone web app
+Makefile               every command; `make help` lists them
+CLAUDE.md              instructions for Claude Code
+AGENTS.md              instructions for other coding agents
+docs/                  code-intelligence setup notes
+.codesight/            committed inventory of routes, libraries and env vars
+repository.yaml        Home Assistant add-on repository manifest
+```
+
+Changing the add-on requires bumping its version in `simple_ai_vision/config.yaml`
+(`make bump`) — the HA Add-on Store keys its update offer off that field, so an
+unbumped change never reaches anyone. Changes to `fall_detection_web` must leave it
+alone.
+
+## Upstream
+
+This repository is a fork. `repository.yaml` names
+[`minhhungtsbd/my_hass_addon_public`](https://github.com/minhhungtsbd/my_hass_addon_public)
+as the upstream project; this fork lives at
+[`SamCh1/AI_detect`](https://github.com/SamCh1/AI_detect). `fall_detection_web` was
+added here and is not part of upstream.

@@ -19,7 +19,11 @@ Roughly 6,600 lines of Python across 10 files. `simple_ai_vision` is ~2,600 LOC 
 
 **Upstream:** this is a fork. `repository.yaml` names `minhhungtsbd/my_hass_addon_public`
 as the upstream project; `origin` is `SamCh1/AI_detect`. Attribute upstream design
-decisions to upstream — do not describe them as this fork's choices.
+decisions to upstream — do not describe them as this fork's choices. Keeping
+`repository.yaml` on upstream's name, url and maintainer is a **deliberate attribution
+choice, reaffirmed 2026-09-12** — do not "fix" it to the fork. `simple_ai_vision/config.yaml`'s
+`url` does point at this fork, because the add-on's own docs have diverged from
+upstream's and users need the version matching what they installed.
 
 ## RTK (Token-Optimized Commands)
 
@@ -43,69 +47,50 @@ the inventory: **[docs/claude/code-intelligence.md](docs/claude/code-intelligenc
 
 ## Conventions that bite
 
-These are the ones that fail a build, break a deploy, or produce a silently wrong
-result. The full constraint lists live in each app's `AGENTS.md`.
+One line each; the reasoning, and what breaks when you get it wrong, is in
+**[docs/claude/gotchas.md](docs/claude/gotchas.md)**. Read it before changing anything
+structural. Add new entries there, and a one-liner here.
 
-1. **The two apps are independent.** A change to `fall_detection_web` must NOT bump
-   the version in `simple_ai_vision/config.yaml`. A change to `simple_ai_vision`
-   MUST bump it — the HA Add-on Store uses that version to offer the update, so an
-   unbumped add-on change never reaches a user.
-
-2. **Both apps define `app.py`, and both are started as `uvicorn app:app`.** That is
-   a bare module reference resolved against the current working directory. Run it
-   from the repo root and you either get an import error or the *other* app. Always
-   `cd` into the app directory first.
-
-3. **`simple_ai_vision` has a hard dependency ceiling.** FastAPI, requests, uvicorn,
-   paho-mqtt, stdlib. Its `AGENTS.md` carries an explicit ~25-entry "DO NOT ADD"
-   list — no database, no ORM, no Redis, no OpenCV, no ffmpeg, no auth. Target is
-   under 150 MB RAM idle with no background loops. Adding a dependency here is a
-   design change, not an implementation detail.
-
-4. **`fall_detection_web` has the opposite posture** — torch, YOLO, Redis and
-   threading are all approved there. Do not carry `simple_ai_vision`'s minimalism
-   into it, or its stack into `simple_ai_vision`.
-
-5. **Snapshots come from go2rtc** (`/api/frame.jpeg?src={camera}`) or an HA camera
-   entity. Never implement RTSP decoding by hand in `simple_ai_vision`.
-
-6. **Add-ons must stay `amd64` + `aarch64` clean.** No distro-specific assumptions,
-   no x86-only wheels.
-
-7. **AI providers must be OpenAI-compatible**, image input as a base64 data URL.
-
-8. **UTF-8 everywhere, and all prose docs are English.** A handful of strings stay
-   Vietnamese on purpose because they are *data, not prose* — do not "fix" them:
-   the `cháy` entry in the Simple AI Vision keyword list (it matches Vietnamese AI
-   output, and English `fire` is already a separate entry), camera and go2rtc
-   stream names such as `bep` and `h9ccam2_sub`, prompt-profile titles, and the
-   automation aliases in the README examples. Translating an identifier changes
-   behaviour; translating a caption does not.
-
-9. **Write shell commands as single-line `&&` chains, not multi-line blocks.** The
-   global `rtk` auto-rewrite hook adds the `rtk` prefix for you, but it matches on
-   the command's leading token — so a newline-separated block starting with `cd …`
-   matches nothing, and the hook returns **silently**: no rewrite, no warning.
-   Measured 2026-09-12: 48 of 51 commands in one session ran unprefixed despite the
-   rule above. `cd x && git status && grep foo` has every command rewritten;
-   `cd x` ⏎ `git status` has none. The one unavoidable exception is a heredoc
-   (`git commit -F - <<'EOF'`), which saves nothing anyway.
-   Do not "fix" this by editing the RTK section above. Upstream, that block is a
-   *generated* region fenced by `<!-- rtk-instructions vN -->` markers and an edit
-   inside it is reverted by the next rtk update. Our copy was written by hand and
-   carries no markers — so if rtk's updater ever manages this file it will not
-   recognise the section and may append a second one. Keep caveats out here, in this
-   list, where nothing regenerates over them.
+1. **The two apps are independent.** Add-on changes MUST bump
+   `simple_ai_vision/config.yaml` (`make bump`); `fall_detection_web` changes must NOT.
+2. **`cd` into the app dir before `uvicorn app:app`** — both apps define `app.py`.
+3. **`simple_ai_vision` has a hard 3-dependency ceiling** and a ~25-entry DO-NOT-ADD
+   list. Adding one is a design change. The two venvs are what enforce it.
+4. **`fall_detection_web` has the opposite posture** — torch, YOLO, Redis, threading.
+   Both pin Python 3.11; `uv` installs it. One `.venv` per app, inside the app.
+5. **Snapshots are go2rtc → Frigate fallback.** There is no HA camera-entity path;
+   `/analyze` takes `{"camera": "..."}` only. Never hand-roll RTSP.
+6. **The add-on needs `hassio_api` for Frigate discovery**, not `homeassistant_api`.
+   The failure is silent.
+7. **Add-ons stay `amd64` + `aarch64` clean.** No x86-only wheels.
+8. **AI providers must be OpenAI-compatible**, image input as a base64 data URL.
+9. **UTF-8, prose in English** — but a few Vietnamese strings are *data*. Do not
+   translate identifiers, keywords, stream names, or model prompts.
+10. **Shell commands as single-line `&&` chains.** The `rtk` hook matches the leading
+    token and skips multi-line blocks silently.
 
 ## Running and verifying
 
+The `Makefile` wraps all of it, and every recipe `cd`s into the app first, which
+makes the `uvicorn app:app` trap in rule 2 unreachable. `make help` lists everything.
+
 ```bash
-cd simple_ai_vision    && rtk uvicorn app:app --host 0.0.0.0 --port 8000
-cd fall_detection_web  && rtk uvicorn app:app --host 0.0.0.0 --port 8090
+rtk make setup    # both venvs + .env, then a readiness report
+rtk make doctor   # what is installed, what is missing, what to run next
+rtk make dev      # both apps, labelled streams (vision :8000, fall :8090)
+rtk make logs     # follow app.log and any running container
+rtk make check    # byte-compile both apps
 ```
 
-`fall_detection_web` expects a venv and a `.env` — see `fall_detection_web/.env.example`
-and its README. Its `data/`, `.env` and `*.pt` model weights are gitignored.
+`uv` is the only prerequisite and installs Python 3.11 itself — do not install Python
+by hand. Both apps pin 3.11 via `.python-version`, so a local venv and the add-on's
+`python:3.11-alpine` container run the same interpreter. Each app owns its `.venv`.
+`requirements.txt` is a generated export of `uv.lock` in both apps: change
+`pyproject.toml`, then `rtk make lock`, never hand-edit the export.
+
+`fall_detection_web` expects a venv and an optional `.env` — see
+`fall_detection_web/.env.example` and its README. Its `data/`, `.env` and `*.pt` model
+weights are gitignored.
 
 **There is no test suite, no linter config, and no CI in this repo.** Nothing here
 mechanically checks a change. Do not claim a change is "verified" or "passing" — say
@@ -153,10 +138,9 @@ developer enables is personal. Committed config, personal activation.
 
 ## Known drift
 
-- `fall_detection_web/AGENTS.md:55` cites `design-system/MASTER.md`. **That file does
-  not exist anywhere in this repo.** Until it is written, treat the design system as
-  undocumented and follow the existing templates in `fall_detection_web/templates/`
-  rather than inventing rules. Do not cite that path as though it resolves.
+- `fall_detection_web/.env.example` carries Vietnamese comments, which is prose, not
+  data — it sits outside the exception list in rule 8 above. Harmless at runtime; fix
+  it the next time that file is touched for another reason.
 
 ## Deliberately absent
 
@@ -174,13 +158,21 @@ An unexplained absence gets "helpfully" added back; a recorded one does not.
 
 ## Pointers
 
+Each app directory's `CLAUDE.md` is a **symlink to its `AGENTS.md`** — one file, two
+names, because Claude Code reads only the former and other agents only the latter. It
+is what makes per-app rules load automatically in that directory. Edit the `AGENTS.md`;
+never delete the link as a duplicate.
+
+
 | File | Read it when |
 |---|---|
+| `AGENTS.md` (root) | you are not Claude Code — thin cross-tool entry point, points back here |
 | `simple_ai_vision/AGENTS.md` | touching the add-on — carries the full DO-NOT-ADD list |
 | `fall_detection_web/AGENTS.md` | touching the web app — stack, caching strategy, threading rules |
 | `simple_ai_vision/README.md` | add-on install, HA automation wiring, `rest_command` examples |
 | `fall_detection_web/README.md` | VPS setup, go2rtc, systemd service, `.env` keys |
-| `README.md` (root) | repository-level overview, in Vietnamese |
+| `README.md` (root) | repository-level overview and HA install — English |
+| `Makefile` | the commands; `make help` lists them, `make doctor` checks the env |
 
 When something surprises you, add a numbered entry to **Conventions that bite** above.
 If that section outgrows this file, split it into `docs/claude/gotchas.md` and link it

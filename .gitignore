@@ -14,3 +14,17 @@
 # Python
 __pycache__/
 *.pyc
+
+# Local virtualenvs, one per app, created by `uv sync` INSIDE the app directory:
+# fall_detection_web/.venv (torch, ~811MB) and simple_ai_vision/.venv (3 direct
+# deps). Separate on purpose so the add-on's dependency ceiling (CLAUDE.md #3)
+# fails loudly instead of silently resolving against torch.
+# `.venv/` carries no leading slash, so git matches it at any depth -- that one
+# line covers both. The code indexes already excluded `*/.venv/` as well.
+# (The old root-level .venv-vision/ no longer exists; nothing creates it.)
+.venv/
+
+# The opposite rule, and the point of the whole layout: pyproject.toml and
+# uv.lock in each app are ALWAYS committed. The lockfile is what makes an
+# environment reproducible across machines and CI; ignoring it defeats uv.
+# requirements.txt is committed too, but GENERATED -- run `make lock`.
