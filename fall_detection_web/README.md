@@ -1,0 +1,458 @@
+# Hệ Thống Giám Sát Camera AI & Cảnh Báo Té Ngã (Fall Detection Web)
+
+Hệ thống giám sát camera thông minh, tự động phát hiện người bằng YOLO và xác thực hành vi (té ngã, sự cố đột xuất) thông qua Trí Tuệ Nhân Tạo (AI Vision), sau đó gửi cảnh báo tức thời kèm theo hình ảnh bằng chứng qua Telegram.
+
+Dự án được xây dựng dưới dạng ứng dụng Web độc lập (Self-hosted Web App), phù hợp triển khai trên VPS, Máy chủ nội bộ (LAN), Mini PC hoặc máy tính giám sát chuyên dụng.
+
+```text
+Camera / RTSP / go2rtc 
+  -> Nhận diện người cục bộ (YOLO)
+  -> Xác thực hình ảnh qua AI Vision (OpenAI API/Gemini/OpenRouter)
+  -> Tạo dòng thời gian sự kiện (Incident Timeline)
+  -> Gửi cảnh báo tức thì qua Telegram (sendPhoto)
+  -> Ghi hình & Lưu trữ bằng chứng video (Teldrive / VPS)
+```
+
+---
+
+## Các Tính Năng Cốt Lõi
+
+- **Bảng điều khiển chuyên nghiệp (SOC Dashboard)**: Theo dõi trạng thái hoạt động của hệ thống, tải tài nguyên CPU/RAM/Disk trực quan, biểu đồ xu hướng sự cố 7 ngày gần nhất, và danh sách sự cố mới nhất.
+- **Quản lý đa camera**: Thêm, sửa, xóa, kích hoạt/vô hiệu hóa, chụp nhanh snapshot, test AI trực tiếp.
+- **Giám sát trực tiếp (Live View)**: Xem live stream độ trễ thấp thông qua go2rtc (Tự động thương lượng WebRTC/MSE), live URL tùy chỉnh hoặc Proxy MJPEG dự phòng.
+- **Xác thực AI Vision**: Gửi hình ảnh snapshot đến các API tương thích OpenAI (OpenAI, Gemini, OpenRouter, 9Router...) để phân loại chính xác sự cố (`SAFE` hoặc `EMERGENCY`).
+- **Cảnh báo Telegram**: Gửi ảnh chụp sự cố kèm theo nội dung mô tả chi tiết ngay khi AI xác nhận có tình huống khẩn cấp (`EMERGENCY`).
+- **Dòng thời gian sự kiện (Events)**: Lưu trữ lịch sử sự cố kèm ảnh thu nhỏ (thumbnail), thời gian (Múi giờ Việt Nam UTC+7), trạng thái và mô tả từ AI.
+- **Xem lại video ghi hình (Recordings)**: Cho phép xem lại các đoạn video sự cố được quay trực tiếp trên giao diện hoặc lưu trữ trên Teldrive (Hỗ trợ trình phát Web player popup và copy link tải nhanh).
+- **Trình quản lý Prompt**: Thiết lập các mẫu Prompt AI riêng biệt để chỉ định cho từng khu vực camera (ví dụ: camera trong nhà cần prompt khác camera ngoài sân).
+- **Bảo mật**: Cơ chế đăng nhập an toàn sử dụng mã hóa mật khẩu bcrypt và phiên làm việc qua JWT Cookie.
+
+---
+
+## Hướng Dẫn Cài Đặt Nhanh
+
+### 1. Trên Linux / Ubuntu VPS
+
+Mở Terminal và chạy các lệnh sau để tạo thư mục, tải mã nguồn, cài đặt Python và các thư viện cần thiết:
+
+```bash
+# 1. Tạo thư mục chứa dự án trong thư mục /opt
+sudo mkdir -p /opt
+cd /opt
+
+# 2. Clone mã nguồn từ GitHub bằng SSH Key
+sudo git clone git@github.com:MyRepo/my_hass_addon_public.git
+cd my_hass_addon_public/fall_detection_web
+
+# Cấp quyền sở hữu thư mục cho user hiện tại (ví dụ: root, ubuntu,...) để chạy không cần sudo
+sudo chown -R $USER:$USER /opt/my_hass_addon_public
+
+# 3. Cài đặt Python3, pip và venv (nếu chưa có)
+sudo apt update
+sudo apt install -y python3 python3-pip python3-venv
+
+# 4. Tạo môi trường ảo Python và kích hoạt
+python3 -m venv venv
+source venv/bin/activate
+
+# 5. Cài đặt các thư viện phụ thuộc
+pip install --upgrade pip
+pip install -r requirements.txt
+
+# 6. Chạy thử nghiệm ứng dụng web
+uvicorn app:app --host 0.0.0.0 --port 8090
+```
+
+### 2. Trên Windows (PowerShell)
+
+Mở PowerShell tại thư mục dự án và chạy:
+
+```powershell
+# 1. Tạo môi trường ảo Python
+python -m venv venv
+
+# 2. Kích hoạt môi trường ảo
+.\venv\Scripts\Activate.ps1
+
+# 3. Cài đặt thư viện phụ thuộc
+pip install -r requirements.txt
+
+# 4. Chạy ứng dụng web
+uvicorn app:app --host 0.0.0.0 --port 8090
+```
+
+Sau khi chạy thành công, truy cập giao diện qua trình duyệt:
+* Địa chỉ: `http://<IP-SERVER>:8090` hoặc `http://localhost:8090`
+* Tài khoản mặc định: **`admin`**
+* Mật khẩu mặc định: **`admin`**
+* *Lưu ý: Bạn nên đổi mật khẩu tài khoản ngay sau lần đầu đăng nhập thành công tại mục Settings.*
+
+---
+
+## Hướng Dẫn Cấu Hình Hệ Thống (Settings)
+
+Sau khi đăng nhập, hãy truy cập menu **Settings** (hoặc biểu tượng bánh răng) trên thanh điều hướng bên trái để thiết lập các thông số hệ thống:
+
+### 1. Cấu hình AI Vision (AI Provider)
+* **AI Base URL**: Địa chỉ API của nhà cung cấp (ví dụ: `https://api.openai.com/v1` hoặc cổng dịch vụ của OpenRouter `https://openrouter.ai/api/v1`, Gemini OpenAI-gateway).
+* **AI API Key**: Khóa API bảo mật của tài khoản AI của bạn.
+* **Vision Model**: Tên model hỗ trợ đọc hiểu hình ảnh (ví dụ: `gpt-4o`, `google/gemini-2.5-flash`...).
+
+### 2. Cấu hình Cảnh Báo Telegram
+* **Telegram Bot Token**: Token của Telegram Bot do bạn tạo ra từ `@BotFather`.
+* **Telegram Chat ID**: ID của người nhận hoặc ID của Nhóm/Kênh Telegram nhận cảnh báo.
+
+### 3. Cấu hình go2rtc (Quản lý luồng Stream & Snapshot)
+* **go2rtc URL**: Link API của go2rtc (ví dụ: `http://127.0.0.1:1984` hoặc URL public của bạn `https://go2rtc.example.me`).
+
+### 4. Cấu hình Lưu Trữ Lịch Sử (Teldrive - Tùy chọn)
+Nếu bạn muốn lưu trữ video và hình ảnh sự cố lên Telegram không giới hạn dung lượng thông qua hệ thống tệp ảo Teldrive:
+* **Teldrive Enabled**: Tích chọn để kích hoạt.
+* **Teldrive Base URL**: Đường dẫn đến server Teldrive của bạn (ví dụ: `https://teldrive.yourdomain.com`).
+* **Teldrive Token**: Nhập **Token JWT/Bearer** hoặc **Khóa API tĩnh vĩnh viễn (Static API Key)** của bạn. Hỗ trợ đầy đủ khóa API tĩnh vĩnh viễn từ phiên bản Teldrive tùy biến của [minhhungtsbd/teldrive](https://github.com/minhhungtsbd/teldrive) giúp kết nối luôn ổn định, không lo hết hạn phiên đăng nhập.
+* **Teldrive Root Path**: Đường dẫn thư mục gốc để lưu trữ (ví dụ: `/Fall Detection`).
+
+### 5. Cấu hình Bộ Nhớ Đệm Redis (Tùy chọn - Giúp tối ưu hóa toàn diện & load mượt mà)
+Để kích hoạt tốc độ tải trang cực nhanh (sub-millisecond) và giảm tải truy vấn cho cơ sở dữ liệu SQLite, bạn có thể bật Redis Cache:
+* **Redis Enabled**: Tích chọn để kích hoạt bộ đệm (chỉ bật khi đã cài đặt Redis Server).
+* **Redis Host**: Địa chỉ kết nối Redis (mặc định: `127.0.0.1`).
+* **Redis Port**: Cổng kết nối Redis (mặc định: `6379`).
+* **Redis DB**: Chỉ số cơ sở dữ liệu Redis sử dụng (mặc định: `0`).
+* **Redis Password**: Mật khẩu xác thực Redis (nếu có).
+
+---
+
+## Hướng Dẫn Cài Đặt & Cấu Hình go2rtc
+
+Để ứng dụng Web lấy được ảnh chụp (snapshot) của camera và phát trực tiếp (live stream) mượt mà, bạn cần cài đặt dịch vụ **go2rtc**.
+
+### 1. Hướng dẫn cài đặt nhanh go2rtc trên Linux (VPS)
+
+Bạn có thể chạy go2rtc trực tiếp bằng file binary hoặc Docker:
+
+#### Cách 1: Chạy trực tiếp bằng Binary file (Khuyên dùng vì nhẹ nhất)
+```bash
+# Tải phiên bản mới nhất từ Github Release (chọn bản phù hợp với CPU amd64 hoặc arm64)
+wget https://github.com/AlexxIT/go2rtc/releases/latest/download/go2rtc_linux_amd64 -O go2rtc
+chmod +x go2rtc
+
+# Khởi chạy go2rtc để tạo file cấu hình mẫu
+./go2rtc
+```
+
+Để chạy ngầm go2rtc như một service hệ thống trên VPS, tạo file service systemd:
+```bash
+sudo nano /etc/systemd/system/go2rtc.service
+```
+Dán nội dung cấu hình service sau (sửa lại thư mục `/opt/go2rtc` cho phù hợp với thư mục chứa file binary của bạn):
+```ini
+[Unit]
+Description=go2rtc service
+After=network.target
+
+[Service]
+ExecStart=/opt/go2rtc/go2rtc
+Restart=always
+RestartSec=5
+WorkingDirectory=/opt/go2rtc
+
+[Install]
+WantedBy=multi-user.target
+```
+Sau đó kích hoạt chạy ngầm cùng hệ thống:
+```bash
+sudo systemctl daemon-reload
+sudo systemctl enable --now go2rtc
+```
+
+---
+
+### 2. Cấu hình kết nối go2rtc trong Web App
+
+Sau khi go2rtc đã chạy, bạn hãy cập nhật tham số **go2rtc URL** trong menu **Settings** của ứng dụng Web tùy thuộc vào mô hình mạng của bạn:
+
+#### Trường hợp A: Sử dụng IP Local (go2rtc và Web App nằm trên cùng 1 VPS/Server)
+* Sử dụng cổng mặc định của go2rtc là `1984`.
+* Nhập vào phần Settings của Web App:
+  ```text
+  http://127.0.0.1:1984
+  ```
+
+#### Trường hợp B: Sử dụng IP LAN hoặc IP Public (go2rtc chạy ở máy chủ/mạng khác)
+* Nếu kết nối qua mạng nội bộ LAN:
+  ```text
+  http://192.168.1.100:1984
+  ```
+* Nếu kết nối qua Internet bằng IP Public của VPS/Server (hãy nhớ mở cổng `1984` trên tường lửa VPS và Router nhà bạn):
+  ```text
+  http://<IP-PUBLIC-CUA-VPS>:1984
+  ```
+
+#### Trường hợp C: Sử dụng Tên Miền Công Khai qua Cloudflare Tunnel (Khuyên dùng để có HTTPS miễn phí và bảo mật cao)
+Nếu bạn đưa go2rtc ra Internet an toàn thông qua Cloudflare Tunnel (ví dụ: `go2rtc.yourdomain.com`):
+* Tạo một Cloudflare Tunnel trỏ tên miền `go2rtc.yourdomain.com` về cổng local `1984` của máy chạy go2rtc.
+* Nhập URL HTTPS vào phần Settings của Web App:
+  ```text
+  https://go2rtc.yourdomain.com
+  ```
+* **Lưu ý về WebRTC khi qua Cloudflare Tunnel:**
+  * Cloudflare Tunnel hỗ trợ truyền tải HTTP và WebSockets hoàn hảo nên các chức năng lấy snapshot (`frame.jpeg`) và xem live stream MSE/HLS sẽ hoạt động ổn định ngay.
+  * Tuy nhiên, giao thức WebRTC (để truyền tải video trễ thấp hỗ trợ HEVC tốt nhất) yêu cầu cổng UDP `8555` và Cloudflare proxy thông thường sẽ chặn cổng này.
+  * **Giải pháp:** Nếu live stream WebRTC bị đen do Cloudflare chặn cổng, trình phát go2rtc trên Web UI sẽ tự động nhận diện và hạ cấp luồng kết nối xuống **MSE/HLS** mà không gây gián đoạn cho bạn. Để WebRTC hoạt động song song qua Internet, bạn có thể mở cổng `8555` (TCP/UDP) trực tiếp trên IP Public của máy chạy go2rtc.
+
+---
+
+## Hướng Hẫn Thiết Lập Camera (Cameras)
+
+Truy cập menu **Cameras** > **Add Camera** hoặc chỉnh sửa camera hiện tại bằng nút **Edit** trong trang chi tiết camera. Hãy điền các thông số theo hướng dẫn sau để camera hoạt động tối ưu nhất:
+
+| Tên Trường Cấu Hình | Cách Thiết Lập & Giá Trị Hợp Lý |
+| :--- | :--- |
+| **Tên camera / source go2rtc** | Nhập chính xác tên stream được khai báo trong cấu hình `go2rtc.yaml` (ví dụ: `h9ccam2_sub`). Không chứa khoảng trắng hoặc ký tự đặc biệt. |
+| **Prompt** | Chọn mẫu Prompt AI phù hợp cho camera này (đã được tạo ở tab Prompts). |
+| **go2rtc frame URL hoặc source** | Nhập tên stream ngắn (ví dụ: `h9ccam2_sub`) nếu bạn đã điền go2rtc URL chung ở phần Settings. Hệ thống sẽ tự động chuyển đổi thành đường dẫn lấy ảnh tĩnh `https://<go2rtc-url>/api/frame.jpeg?src=h9ccam2_sub`. |
+| **go2rtc live URL** | Nên để trống. Hệ thống sẽ tự động tạo link live stream dạng `https://<go2rtc-url>/stream.html?src=h9ccam2_sub`. Trình phát này sẽ tự động chạy **WebRTC** (Hỗ trợ mượt mà H.265/HEVC, không giật lag) và tự fallback về MSE/HLS khi cần. |
+| **RTSP URL Camera (fallback)** | **⚠️ QUAN TRỌNG:** Phải điền **RTSP trực tiếp từ địa chỉ IP của camera** (ví dụ: `rtsp://admin:PASS@192.168.2.152:554/Streaming/Channels/201`), **KHÔNG điền link RTSP của go2rtc**. Đây là đường dẫn dự phòng để hệ thống tự kết nối trực tiếp đến camera chụp ảnh khi go2rtc bị lỗi. |
+| **Chế độ live (Live Mode)** | Chọn **Tự động: go2rtc iframe** để chạy mượt mà nhất. Nếu camera HEVC/H.265 của bạn vẫn bị đen màn hình trên các trình duyệt cũ, có thể chuyển sang chế độ **Snapshot refresh**. |
+| **Lưu trữ & Ghi hình** | Tích chọn các mục **Lưu ảnh/video trên VPS** hoặc **Ghi và upload video** (qua Teldrive) theo nhu cầu. |
+| **Thời lượng quay video** | Thời gian ghi hình khi phát hiện sự cố (thường đặt từ **10 giây đến 30 giây** là hợp lý). |
+| **Thời gian chờ quay tiếp theo** | Cooldown (giây) để tránh ghi hình liên tục lặp lại cho cùng một sự cố (nên đặt **300 giây - 5 phút**). |
+
+---
+
+## Hướng Dẫn Sử Dụng Chi Tiết
+
+1. **Kích hoạt Giám Sát**: Tại trang chủ (Dashboard) hoặc trang chi tiết camera, nhấn nút **Start** ở góc phải trên cùng để bắt đầu chạy vòng lặp giám sát nhận diện người bằng YOLO.
+2. **Theo dõi Trạng thái**: Bảng điều khiển sẽ hiển thị biểu đồ và tài nguyên hệ thống theo thời gian thực.
+3. **Phát Hiện Người & Xác Thực**:
+   * Khi YOLO phát hiện có người xuất hiện trong khung hình, nó sẽ trigger chụp snapshot từ go2rtc.
+   * Snapshot được gửi tới AI Vision để phân tích hành vi.
+   * Nếu AI xác nhận là `EMERGENCY` (ví dụ: Té ngã, bất tỉnh, đột nhập đột xuất...):
+     * Gửi cảnh báo hình ảnh và lời thoại mô tả sự việc đến Telegram của bạn ngay lập tức.
+     * Tự động kích hoạt chế độ ghi hình video ngắn (nếu cấu hình bật).
+     * Đẩy sự kiện vào dòng thời gian **Events** trên web.
+   * Nếu AI xác nhận là `SAFE` (ví dụ: Người đi bộ bình thường, dọn dẹp...): Sự kiện được ghi lại trên danh sách events là Safe và không gửi cảnh báo Telegram để tránh spam.
+4. **Xem Lại Bằng Chứng**:
+   * **Events**: Truy cập tab **Events** để xem dòng thời gian sự cố, lọc theo camera, lọc theo trạng thái AI, click vào ảnh thu nhỏ để xem ảnh gốc kích thước lớn.
+   * **Recordings**: Truy cập tab **Recordings** để xem lại video sự cố. Bạn có thể chọn hiển thị danh sách dạng Lưới (Grid) hoặc Danh sách (List), thay đổi số lượng cột (2 hoặc 3 cột), bật/tắt ảnh thu nhỏ và chế độ **Play Cover** (cho phép play video trong một popup mượt mà hoặc nhúng trực tiếp video vào trang). Bạn cũng có thể copy nhanh link video bằng nút **Copy Link** để tải về máy.
+
+---
+
+## Cấu Hình Chạy Ngầm Hệ Thống (Systemd Service trên Linux)
+
+Để ứng dụng tự động khởi động cùng VPS và luôn chạy ngầm trong hệ thống, hãy cấu hình dịch vụ Systemd:
+
+1. Tạo file dịch vụ:
+   ```bash
+   sudo nano /etc/systemd/system/fall-detection.service
+   ```
+2. Dán nội dung cấu hình sau vào file:
+   ```ini
+   [Unit]
+   Description=Fall Detection Web Service
+   After=network-online.target
+
+   [Service]
+   User=root
+   WorkingDirectory=/opt/my_hass_addon_public/fall_detection_web
+   ExecStart=/opt/my_hass_addon_public/fall_detection_web/venv/bin/uvicorn app:app --host 0.0.0.0 --port 8090 --no-access-log
+   Restart=always
+   RestartSec=5
+
+   [Install]
+   WantedBy=multi-user.target
+   ```
+3. Lưu file lại (`Ctrl+O`, `Enter`, `Ctrl+X`), sau đó chạy các lệnh sau để kích hoạt dịch vụ:
+   ```bash
+   # Tải lại cấu hình dịch vụ
+   sudo systemctl daemon-reload
+
+   # Kích hoạt khởi động cùng hệ thống và chạy dịch vụ ngay lập tức
+   sudo systemctl enable --now fall-detection
+
+   # Kiểm tra trạng thái dịch vụ đang chạy
+   sudo systemctl status fall-detection
+
+   # Xem log hoạt động theo thời gian thực
+   journalctl -u fall-detection -f
+   ```
+
+---
+
+## Hướng Dẫn Cài Đặt & Cấu Hình Teldrive (Lưu Trữ Video & Hình Ảnh Sự Cố)
+
+Để lưu trữ tự động các đoạn video bằng chứng và hình ảnh sự cố lên Telegram không giới hạn dung lượng, bạn nên cài đặt bản **Teldrive** đã được tùy biến riêng hỗ trợ **Khóa API tĩnh vĩnh viễn (Static API Key)** tại repo [minhhungtsbd/teldrive](https://github.com/minhhungtsbd/teldrive).
+
+### 1. Hướng dẫn cài đặt & biên dịch Teldrive trên VPS
+
+#### Cách 1: Biên dịch bằng Docker (Khuyên dùng vì sạch sẽ và nhanh chóng)
+Nếu VPS đã cài đặt Docker, bạn có thể biên dịch trực tiếp ra file thực thi chạy độc lập mà không cần cài đặt Go trên hệ điều hành VPS:
+```bash
+# 1. Di chuyển vào thư mục chứa và clone mã nguồn
+cd ~/
+git clone https://github.com/minhhungtsbd/teldrive.git teldrive-src
+cd teldrive-src
+
+# 2. Chạy container để sinh mã giao diện, sinh API và biên dịch server
+docker run --rm -v "$PWD":/app -w /app golang:alpine sh -c "
+  apk add --no-cache git curl bash unzip &&
+  go install github.com/go-task/task/v3/cmd/task@latest &&
+  /go/bin/task gen &&
+  /go/bin/task ui &&
+  CGO_ENABLED=0 go build -trimpath -ldflags '-s -w' -o bin/teldrive
+"
+```
+Sau khi chạy xong, tệp thực thi biên dịch hoàn tất sẽ nằm tại: `~/teldrive-src/bin/teldrive`.
+
+#### Cách 2: Biên dịch trực tiếp bằng Go (Yêu cầu Go >= 1.22 trên hệ thống)
+```bash
+cd ~/teldrive-src
+# Sinh các mã nguồn tự động
+go generate ./...
+# Biên dịch server
+go build -o bin/teldrive main.go
+```
+
+---
+
+### 2. Thiết lập Cơ sở dữ liệu & Cấu hình Teldrive
+
+1. **Chuẩn bị PostgreSQL Database**: Teldrive yêu cầu PostgreSQL để lưu trữ thông tin cấu trúc thư mục ảo. Chạy các lệnh SQL sau để khởi tạo:
+   ```sql
+   CREATE DATABASE teldrive_db;
+   CREATE USER teldrive_user WITH PASSWORD 'MatKhauCuaBan';
+   GRANT ALL PRIVILEGES ON DATABASE teldrive_db TO teldrive_user;
+   ```
+
+2. **Cấu hình tệp `config.toml`**:
+   Tạo thư mục `/etc/teldrive` và tạo file cấu hình:
+   ```bash
+   sudo mkdir -p /etc/teldrive
+   sudo nano /etc/teldrive/config.toml
+   ```
+   Dán nội dung cấu hình mẫu dưới đây (chú ý điền đúng thông tin kết nối Postgres và **thiết lập Khóa API tĩnh vĩnh viễn**):
+   ```toml
+   [server]
+   port = 8080
+   graceful-shutdown = '10s'
+
+   [db]
+   # Điền chuỗi kết nối database PostgreSQL của bạn
+   data-source = 'postgres://teldrive_user:MatKhauCuaBan@127.0.0.1:5432/teldrive_db?sslmode=disable'
+
+   [jwt]
+   secret = 'nhap-chuoi-secret-jwt-ngau-nhien-cua-ban'
+   session-time = '30d'
+   allowed-users = ["username_telegram_cua_ban"] # Whitelist username Telegram được phép truy cập
+   
+   # Cấu hình khóa API tĩnh bảo mật vĩnh viễn (Static API Key)
+   api-key = 'fall_detection_web_secure_api_key_2026' # Nhập khóa tự chọn bảo mật của bạn vào đây
+   api-key-user = 0 # ID Telegram sở hữu session (để 0 để hệ thống tự động nhận diện session đầu tiên)
+
+   [tg]
+   app-id = 2496 # Telegram App ID lấy từ my.telegram.org
+   app-hash = '8da85b0d5bfe62527e5b244c209159c3' # Telegram App Hash
+   auto-channel-create = true
+   channel-limit = 500000
+
+   [tg.session]
+   type = 'postgres'
+   key = 'session'
+   ```
+
+3. **Chạy dịch vụ Teldrive ngầm bằng Systemd**:
+   Tạo file dịch vụ:
+   ```bash
+   sudo nano /etc/systemd/system/teldrive.service
+   ```
+   Dán nội dung cấu hình sau:
+   ```ini
+   [Unit]
+   Description=Teldrive Telegram VFS Service
+   After=network.target
+
+   [Service]
+   ExecStart=/usr/bin/teldrive run --config /etc/teldrive/config.toml
+   Restart=always
+   RestartSec=5
+   WorkingDirectory=/etc/teldrive
+
+   [Install]
+   WantedBy=multi-user.target
+   ```
+   Sau đó di chuyển file thực thi và kích hoạt dịch vụ:
+   ```bash
+   sudo cp ~/teldrive-src/bin/teldrive /usr/bin/teldrive
+   sudo chmod +x /usr/bin/teldrive
+   sudo systemctl daemon-reload
+   sudo systemctl enable --now teldrive
+   sudo systemctl status teldrive
+   ```
+
+---
+
+### 3. Cách sử dụng Khóa API Tĩnh (Static API Key) để tải lên video & hình ảnh
+
+Trong bản phân phối đã được tùy biến này, bạn có thể thực hiện xác thực bảo mật thông qua Khóa API tĩnh vĩnh viễn cực kỳ linh hoạt bằng 3 cách:
+1. **Authorization Header:** Gửi kèm header `Authorization: Bearer <khoa-api-tinh>` (Cách này được sử dụng tự động bởi Fall Detection Web khi bạn điền khóa vào ô **Teldrive token**).
+2. **X-API-Key Header:** Gửi kèm header `X-API-Key: <khoa-api-tinh>`.
+3. **URL Parameter:** Chèn thêm tham số vào cuối URL `?token=<khoa-api-tinh>`.
+
+#### 🔗 Nhúng trực tiếp hình ảnh/video vào giao diện (Bypass)
+Khi bạn cần nhúng các hình ảnh snapshot hoặc stream trực tiếp video từ Teldrive lên trang web khác, bạn chỉ cần chèn thêm tham số `?token=` vào đường dẫn tệp:
+```html
+<!-- Nhúng ảnh thumbnail sự cố -->
+<img src="http://<VPS-IP>:8080/api/files/<FILE_ID>/thumb.jpg?token=fall_detection_web_secure_api_key_2026" />
+
+<!-- Phát trực tiếp video sự cố -->
+<video controls>
+  <source src="http://<VPS-IP>:8080/api/files/<FILE_ID>/clip.mp4?token=fall_detection_web_secure_api_key_2026" type="video/mp4">
+</video>
+```
+
+#### 🔑 Đăng nhập nhanh vào trang quản trị Web UI Teldrive
+Để truy cập nhanh vào giao diện quản lý tệp tin Web UI của Teldrive trên trình duyệt mà không cần phải xác thực đăng nhập mã OTP qua Telegram, hãy truy cập đường dẫn:
+```text
+http://<VPS-IP>:8080/api/auth/static?key=fall_detection_web_secure_api_key_2026
+```
+Hệ thống sẽ tự động xác nhận Khóa API, thiết lập cookie phiên làm việc và chuyển hướng bạn thẳng vào trang quản lý tệp tin.
+
+---
+
+## Hướng Dẫn Cài Đặt Redis Server
+
+Để sử dụng tính năng Redis Caching giúp tối ưu hóa website, bạn cần cài đặt dịch vụ Redis Server trên hệ thống:
+
+### 1. Trên Linux (Ubuntu / Debian VPS)
+
+Chạy các lệnh sau trong Terminal để cài đặt và kích hoạt Redis:
+```bash
+# Cài đặt dịch vụ Redis Server
+sudo apt update
+sudo apt install -y redis-server
+
+# Kích hoạt dịch vụ chạy ngầm cùng hệ thống
+sudo systemctl enable --now redis-server
+
+# Kiểm tra trạng thái hoạt động
+sudo systemctl status redis-server
+```
+
+### 2. Trên Windows
+Bạn có thể cài đặt Redis trên Windows thông qua môi trường WSL, hoặc chạy nhanh bằng Docker:
+```bash
+docker run -d --name redis-cache -p 6379:6379 redis:alpine
+```
+
+### 3. Cơ chế tự động dự phòng (Fail-safe)
+Ứng dụng được thiết kế vô cùng an toàn. Nếu dịch vụ Redis Server bị dừng hoặc chưa được cấu hình, Web App sẽ **tự động bỏ qua cache** và truy vấn dữ liệu trực tiếp từ cơ sở dữ liệu SQLite/Disk một cách trơn tru, tuyệt đối không gây lỗi crash hay làm gián đoạn luồng giám sát an ninh.
+
+---
+
+## Một Số Lưu Ý Quan Trọng khi Sử Dụng
+
+1. **Bảo mật**: Luôn đổi mật khẩu mặc định `admin/admin` ngay sau khi cài đặt thành công. Nếu bạn public ứng dụng ra internet ngoài mạng LAN, hãy cài đặt SSL (HTTPS) thông qua một Reverse Proxy (Nginx, Caddy, hoặc Cloudflare Tunnel) để bảo mật mã hóa JWT Cookie.
+2. **CPU VPS**: 
+   * Hãy tận dụng tối đa go2rtc để stream và lấy snapshot. 
+   * Tính năng ghi hình video đã được tối ưu hóa để ghi hình nguyên bản (copy codec) nhằm giải phóng CPU VPS khỏi tác vụ transcode nặng nề.
+3. **Độ ổn định của Camera**: Chất lượng kết nối hình ảnh và độ trễ phụ thuộc lớn vào chất lượng mạng nội bộ của camera và cấu hình go2rtc của bạn. Nên ưu tiên kết nối mạng dây (LAN) cho camera thay vì kết nối Wifi không ổn định.

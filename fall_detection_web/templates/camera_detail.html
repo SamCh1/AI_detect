@@ -1,0 +1,1331 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Camera Detail - Fall Detection</title>
+  <link rel="icon" type="image/svg+xml" href="/favicon.ico">
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Fira+Code:wght@500;600;700&family=Fira+Sans:wght@400;500;600;700&display=swap');
+    :root {
+      --bg: #020617;
+      --bg-soft: #07111f;
+      --surface: #0f172a;
+      --surface-2: #111c2f;
+      --surface-3: #1e293b;
+      --line: #26364d;
+      --line-strong: #3d506c;
+      --text: #f8fafc;
+      --muted: #9aa8bd;
+      --faint: #68778d;
+      --good: #22c55e;
+      --info: #38bdf8;
+      --warn: #f59e0b;
+      --bad: #f43f5e;
+      --violet: #a78bfa;
+      --shadow: 0 24px 80px rgba(0, 0, 0, .34);
+      --radius: 8px;
+      --sidebar: 272px;
+    }
+
+    * { box-sizing: border-box; }
+    *::selection { background: rgba(34, 197, 94, .24); }
+    html { min-height: 100%; background: var(--bg); }
+    body {
+      min-height: 100vh;
+      margin: 0;
+      background:
+        radial-gradient(circle at 18% -12%, rgba(56, 189, 248, .15), transparent 31rem),
+        radial-gradient(circle at 88% 4%, rgba(34, 197, 94, .12), transparent 28rem),
+        linear-gradient(180deg, #020617 0%, #07111f 100%);
+      color: var(--text);
+      font: 14px/1.45 "Fira Sans", Arial, sans-serif;
+    }
+
+    button, input, textarea, select { font: inherit; }
+    button, a, select, input[type="checkbox"] { cursor: pointer; }
+    button:disabled { cursor: not-allowed; opacity: .55; }
+    a { color: var(--info); text-decoration: none; }
+    h1, h2, h3, p { margin: 0; }
+    h1, h2, h3, .mono { font-family: "Fira Code", ui-monospace, SFMono-Regular, Consolas, monospace; }
+    .hidden { display: none !important; }
+
+    .app {
+      min-height: 100vh;
+      display: grid;
+      grid-template-columns: var(--sidebar) minmax(0, 1fr);
+    }
+
+    .sidebar {
+      position: sticky;
+      top: 0;
+      height: 100vh;
+      padding: 18px;
+      border-right: 1px solid var(--line);
+      background: rgba(2, 6, 23, .78);
+      backdrop-filter: blur(18px);
+      display: flex;
+      flex-direction: column;
+      gap: 18px;
+      z-index: 20;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      min-height: 54px;
+    }
+
+    .brand-mark, .icon-box {
+      width: 44px;
+      height: 44px;
+      border-radius: var(--radius);
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--good);
+      background: linear-gradient(180deg, rgba(34, 197, 94, .16), rgba(56, 189, 248, .08));
+      border: 1px solid rgba(34, 197, 94, .36);
+      box-shadow: inset 0 0 28px rgba(34, 197, 94, .08), 0 0 22px rgba(34, 197, 94, .10);
+      flex: 0 0 auto;
+    }
+
+    .brand-mark svg, .icon-box svg, .btn svg, .nav-btn svg, .status-chip svg {
+      width: 20px;
+      height: 20px;
+      stroke: currentColor;
+      stroke-width: 1.8;
+      fill: none;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+      flex: 0 0 auto;
+    }
+
+    .brand h1 { font-size: 17px; letter-spacing: 0; }
+    .brand p { color: var(--muted); font-size: 12px; margin-top: 2px; }
+
+    .nav {
+      display: grid;
+      gap: 6px;
+    }
+
+    .nav-btn {
+      width: 100%;
+      min-height: 42px;
+      border: 1px solid transparent;
+      border-radius: var(--radius);
+      background: transparent;
+      color: var(--muted);
+      padding: 9px 10px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      text-align: left;
+      transition: background .18s ease, border-color .18s ease, color .18s ease;
+    }
+
+    .nav-btn:hover { color: var(--text); background: rgba(30, 41, 59, .62); }
+    .nav-btn.active {
+      color: var(--text);
+      border-color: rgba(34, 197, 94, .42);
+      background: rgba(34, 197, 94, .12);
+    }
+
+    .spacer { flex: 1; }
+
+    .side-stats {
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: rgba(15, 23, 42, .78);
+      padding: 12px;
+      display: grid;
+      gap: 8px;
+    }
+
+    .side-stats div {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      color: var(--muted);
+      font-size: 12px;
+    }
+    .side-stats b { color: var(--text); font-family: "Fira Code", monospace; }
+
+    .main {
+      min-width: 0;
+    }
+
+    .topbar {
+      position: sticky;
+      top: 0;
+      z-index: 10;
+      min-height: 72px;
+      padding: 14px 22px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      border-bottom: 1px solid rgba(38, 54, 77, .84);
+      background: rgba(7, 17, 31, .82);
+      backdrop-filter: blur(18px);
+    }
+
+    .topbar h2 { font-size: 20px; }
+    .topbar p { color: var(--muted); margin-top: 3px; }
+
+    .actions {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .content { padding: 18px 22px 34px; display: grid; gap: 14px; }
+
+    .panel {
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: linear-gradient(180deg, rgba(15, 23, 42, .94), rgba(12, 21, 36, .94));
+      box-shadow: 0 14px 42px rgba(0, 0, 0, .18);
+      overflow: hidden;
+    }
+
+    .panel-head {
+      padding: 16px;
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 14px;
+      border-bottom: 1px solid rgba(38, 54, 77, .65);
+    }
+    .panel-head h3 { font-size: 15px; }
+    .panel-head p { color: var(--muted); margin-top: 3px; }
+    .panel-body { padding: 16px; }
+
+    .btn {
+      min-height: 40px;
+      border: 1px solid var(--line-strong);
+      border-radius: var(--radius);
+      background: rgba(30, 41, 59, .62);
+      color: var(--text);
+      padding: 9px 12px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      font-weight: 700;
+      transition: background .18s ease, border-color .18s ease, color .18s ease, opacity .18s ease;
+      white-space: nowrap;
+    }
+    .btn:hover { border-color: var(--info); background: rgba(56, 189, 248, .10); }
+    .btn.primary { border-color: rgba(34, 197, 94, .68); background: var(--good); color: #04130a; }
+    .btn.primary:hover { background: #4ade80; }
+    .btn.danger { border-color: rgba(244, 63, 94, .72); color: #fecdd3; background: rgba(244, 63, 94, .12); }
+    .btn.danger:hover { background: rgba(244, 63, 94, .20); }
+    .btn.ghost { background: transparent; }
+    .btn.small { min-height: 34px; padding: 7px 9px; font-size: 12px; }
+
+    .status-chip, .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      min-height: 28px;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      padding: 4px 9px;
+      color: var(--muted);
+      background: rgba(2, 6, 23, .28);
+      font-weight: 700;
+      font-size: 12px;
+    }
+    .status-chip { min-height: 38px; padding: 8px 12px; border-radius: 999px; }
+    .status-chip.good { border-color: rgba(34, 197, 94, .44); background: rgba(34, 197, 94, .10); color: #bbf7d0; }
+    
+    .badge.good { color: #bbf7d0; border-color: rgba(34, 197, 94, .44); background: rgba(34, 197, 94, .10); }
+    .badge.bad { color: #fecdd3; border-color: rgba(244, 63, 94, .44); background: rgba(244, 63, 94, .10); }
+    .badge.warn { color: #fde68a; border-color: rgba(245, 158, 11, .44); background: rgba(245, 158, 11, .10); }
+    .badge.info { color: #bae6fd; border-color: rgba(56, 189, 248, .44); background: rgba(56, 189, 248, .10); }
+
+    .dot {
+      width: 9px;
+      height: 9px;
+      border-radius: 50%;
+      background: var(--faint);
+      box-shadow: 0 0 0 4px rgba(104, 119, 141, .14);
+      position: relative;
+    }
+    .dot.running {
+      background: var(--good);
+      box-shadow: 0 0 0 4px rgba(34, 197, 94, .16);
+      animation: radar-pulse 1.8s infinite;
+    }
+    @keyframes radar-pulse {
+      0% { box-shadow: 0 0 0 0px rgba(34, 197, 94, 0.45), 0 0 0 0px rgba(34, 197, 94, 0.2); }
+      100% { box-shadow: 0 0 0 8px rgba(34, 197, 94, 0), 0 0 0 16px rgba(34, 197, 94, 0); }
+    }
+
+    /* Detail Grid Layout */
+    .detail-grid { display: grid; grid-template-columns: minmax(0, 1.35fr) minmax(300px, 0.65fr); gap: 14px; }
+    .live-card { border: 1px solid var(--line); border-radius: var(--radius); overflow: hidden; background: #000; display: flex; flex-direction: column; }
+    .live-card header { min-height: 46px; padding: 0 14px; display: flex; align-items: center; justify-content: space-between; background: rgba(15, 23, 42, .82); border-bottom: 1px solid var(--line); }
+    .live-card iframe, .live-card img { width: 100%; aspect-ratio: 16 / 9; border: 0; display: block; object-fit: contain; background: #000; }
+    
+    .metrics { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; align-content: start; }
+    .metric-card {
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: rgba(15, 23, 42, 0.6);
+      padding: 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      transition: all 0.2s ease;
+    }
+    .metric-card:hover {
+      border-color: rgba(56, 189, 248, 0.35);
+      background: rgba(15, 23, 42, 0.8);
+    }
+    .metric-card.full-width { grid-column: span 2; }
+    .metric-card-label { color: var(--muted); font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; display: flex; align-items: center; gap: 6px; }
+    .metric-card-value { font-family: "Fira Code", monospace; font-size: 13px; color: var(--text); word-break: break-all; margin-top: 2px; }
+
+    .toolbar { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; }
+    select, input {
+      min-height: 40px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: rgba(2, 6, 23, .42);
+      color: var(--text);
+      padding: 9px 11px;
+      outline: none;
+      transition: border-color .18s ease, box-shadow .18s ease;
+    }
+    select:focus, input:focus {
+      border-color: var(--good);
+      box-shadow: 0 0 0 3px rgba(34, 197, 94, .16);
+    }
+
+    table { width: 100%; border-collapse: collapse; }
+    th, td { padding: 12px; border-bottom: 1px solid var(--line); text-align: left; vertical-align: middle; }
+    th { color: var(--muted); font-size: 12px; font-weight: 700; background: rgba(2, 6, 23, .22); }
+    td { color: #dbe5f4; }
+    tr:hover td { background: rgba(30, 41, 59, .22); }
+
+    .event-thumb { width: 78px; height: 48px; object-fit: cover; border-radius: 4px; border: 1px solid var(--line); cursor: pointer; transition: transform 0.2s ease, border-color 0.2s ease; }
+    .event-thumb:hover { transform: scale(1.05); border-color: var(--info); }
+    .empty {
+      min-height: 110px;
+      border: 1px dashed var(--line-strong);
+      border-radius: var(--radius);
+      display: grid;
+      place-items: center;
+      padding: 18px;
+      color: var(--muted);
+      text-align: center;
+      background: rgba(2, 6, 23, .22);
+    }
+
+    /* Recordings */
+    .recordings-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+    .recordings-grid.cols-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .recordings-grid.cols-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    .recordings-grid.list-view { grid-template-columns: 1fr; }
+    .recordings-grid.list-view .recording-card {
+      flex-direction: row;
+      align-items: center;
+      min-height: 80px;
+    }
+    .recordings-grid.list-view .recording-thumb-wrapper {
+      width: 142px;
+      height: 80px;
+      aspect-ratio: auto;
+      flex-shrink: 0;
+    }
+    .recordings-grid.list-view footer {
+      flex: 1;
+      height: 100%;
+      padding: 12px 16px;
+    }
+    .recordings-grid.no-thumbnails .recording-thumb-wrapper {
+      display: none !important;
+    }
+    .recording-card {
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      overflow: hidden;
+      background: rgba(15, 23, 42, 0.6);
+      transition: all 0.22s ease;
+      display: flex;
+      flex-direction: column;
+    }
+    .recording-card:hover {
+      border-color: rgba(34, 197, 94, 0.35);
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.25);
+    }
+    .recording-thumb-wrapper {
+      width: 100%;
+      aspect-ratio: 16 / 9;
+      background: #000;
+      position: relative;
+      cursor: pointer;
+      display: grid;
+      place-items: center;
+    }
+    .recording-thumb-wrapper img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      opacity: 0.75;
+      transition: opacity 0.2s ease;
+    }
+    .recording-thumb-wrapper:hover img {
+      opacity: 0.9;
+    }
+    .play-button-overlay {
+      position: absolute;
+      width: 48px;
+      height: 48px;
+      border-radius: 50%;
+      background: rgba(34, 197, 94, 0.85);
+      color: #04130a;
+      display: grid;
+      place-items: center;
+      box-shadow: 0 0 15px rgba(34, 197, 94, 0.4);
+      transition: transform 0.2s ease, background 0.2s ease;
+    }
+    .recording-thumb-wrapper:hover .play-button-overlay {
+      transform: scale(1.1);
+      background: #4ade80;
+    }
+    .play-button-overlay svg {
+      width: 24px;
+      height: 24px;
+      fill: currentColor;
+    }
+    .recording-card footer { padding: 12px; display: flex; justify-content: space-between; gap: 10px; align-items: center; }
+
+    .pager { padding: 12px 16px; display: flex; justify-content: space-between; align-items: center; gap: 10px; }
+    
+    /* Dialogs & Viewer */
+    dialog {
+      width: min(880px, calc(100vw - 28px));
+      max-height: calc(100vh - 28px);
+      border: 1px solid var(--line-strong);
+      border-radius: var(--radius);
+      padding: 0;
+      color: var(--text);
+      background: var(--surface);
+      box-shadow: var(--shadow);
+    }
+    dialog::backdrop { background: rgba(0, 0, 0, .72); backdrop-filter: blur(4px); }
+    .dialog-head, .dialog-foot {
+      padding: 14px 16px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      border-bottom: 1px solid var(--line);
+    }
+    .dialog-foot { border-top: 1px solid var(--line); border-bottom: 0; justify-content: flex-end; }
+    .dialog-body { padding: 16px; overflow: auto; max-height: calc(100vh - 160px); }
+    .viewer-body { padding: 12px; background: #000; }
+    .viewer-body iframe, .viewer-body img, .viewer-body video {
+      width: 100%;
+      aspect-ratio: 16 / 9;
+      display: block;
+      border: 0;
+      background: #000;
+      object-fit: contain;
+    }
+
+    /* Camera Edit Form styles */
+    .form-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+    .field.full { grid-column: 1 / -1; }
+    .form-grid label { color: var(--muted); font-size: 12px; font-weight: 700; display: block; margin-bottom: 6px; }
+    .form-grid input, .form-grid select {
+      width: 100%;
+      min-height: 40px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: rgba(2, 6, 23, .42);
+      color: var(--text);
+      padding: 9px 11px;
+      outline: none;
+    }
+    .form-grid input[type="checkbox"] { width: 18px; min-height: 18px; accent-color: var(--good); }
+    .form-grid .check-row {
+      min-height: 40px;
+      display: flex;
+      align-items: center;
+      gap: 9px;
+      padding: 9px 11px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: rgba(2, 6, 23, .28);
+      color: var(--muted);
+      font-weight: 700;
+      font-size: 12px;
+    }
+    .stack { display: grid; gap: 10px; }
+    .help-text { color: var(--muted); display: block; font-size: 12px; margin-top: 5px; }
+    .loading-spinner {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      animation: spin 0.85s linear infinite;
+    }
+    @keyframes spin {
+      from { transform: rotate(0deg); }
+      to { transform: rotate(360deg); }
+    }
+
+    #confirmDialog {
+      width: min(440px, calc(100vw - 28px));
+    }
+
+    .toast {
+      position: fixed;
+      right: 18px;
+      bottom: 18px;
+      z-index: 200;
+      display: grid;
+      gap: 10px;
+      width: min(390px, calc(100vw - 28px));
+      pointer-events: none;
+      border: 1px solid var(--line);
+      border-left: 4px solid var(--info);
+      border-radius: var(--radius);
+      background: rgba(15, 23, 42, .96);
+      padding: 12px 14px;
+      box-shadow: var(--shadow);
+      color: var(--text);
+      font-weight: 700;
+      animation: toast-in .18s ease-out both;
+    }
+    .toast.good { border-left-color: var(--good); }
+    .toast.bad { border-left-color: var(--bad); }
+    @keyframes toast-in { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+
+    @media (max-width: 1100px) {
+      .app { grid-template-columns: 1fr; }
+      .sidebar {
+        position: static;
+        height: auto;
+        border-right: 0;
+        border-bottom: 1px solid var(--line);
+      }
+      .nav { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+      .side-stats { display: none; }
+      .detail-grid, .recordings-grid { grid-template-columns: 1fr; }
+      .topbar { position: static; }
+    }
+
+    @media (max-width: 720px) {
+      .content { padding: 12px 14px 24px; gap: 10px; }
+      .topbar { margin: 0; padding: 12px 14px; }
+      .nav { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .topbar { align-items: stretch; flex-direction: column; }
+      .actions { align-items: stretch; flex-direction: column; }
+      .btn, .status-chip { width: 100%; }
+      .toolbar { justify-content: stretch; }
+      .toolbar > * { flex: 1 1 45%; }
+      .form-grid { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <aside class="sidebar">
+      <div class="brand">
+        <div class="brand-mark" aria-hidden="true" data-icon="shield-pulse"></div>
+        <div>
+          <h1>Fall Detection</h1>
+          <p>Camera operations console</p>
+        </div>
+      </div>
+      <nav class="nav" aria-label="Primary">
+        <a class="nav-btn" href="/"><span data-icon="layout"></span>Dashboard</a>
+        <a class="nav-btn active" href="/cameras"><span data-icon="camera"></span>Cameras</a>
+        <a class="nav-btn" href="/#prompts"><span data-icon="file-text"></span>Prompts</a>
+        <a class="nav-btn" href="/#live"><span data-icon="monitor"></span>Live View</a>
+        <a class="nav-btn" href="/#settings"><span data-icon="settings"></span>Settings</a>
+        <a class="nav-btn" href="/#tools"><span data-icon="wrench"></span>Tools</a>
+      </nav>
+      <div class="spacer"></div>
+      <div class="side-stats">
+        <div><span>CPU</span><b id="cpuStat">-</b></div>
+        <div><span>RAM</span><b id="ramStat">-</b></div>
+        <div><span>Disk</span><b id="diskStat">-</b></div>
+      </div>
+      <form action="/auth/logout" method="post" style="width: 100%;">
+        <button class="btn danger" type="submit" style="width: 100%;"><span data-icon="logout"></span>Logout</button>
+      </form>
+    </aside>
+    <main class="main">
+      <header class="topbar">
+        <div><h2 id="pageTitle">Camera Detail</h2><p class="muted" id="pageMeta">Loading camera timeline.</p></div>
+        <div class="actions">
+          <div class="status-chip"><span id="runDot" class="dot"></span><span id="monitorStatus">Stopped</span></div>
+          <button id="startBtn" class="btn primary" type="button"><span data-icon="play"></span>Start</button>
+          <button id="stopBtn" class="btn danger" type="button"><span data-icon="stop"></span>Stop</button>
+          <button id="refreshAllBtn" class="btn" type="button"><span data-icon="refresh"></span>Refresh</button>
+        </div>
+      </header>
+      <section class="content">
+        <section class="panel">
+          <div class="panel-head">
+            <div><h3 id="cameraName">Camera</h3><p class="muted" id="cameraMeta">Loading source.</p></div>
+            <div class="actions">
+              <a class="btn" href="/cameras"><span data-icon="arrow-left"></span>Back</a>
+              <button id="toggleBtn" class="btn" type="button">Enable</button>
+              <button id="editBtn" class="btn" type="button"><span data-icon="edit"></span>Edit</button>
+              <button id="snapshotBtn" class="btn" type="button"><span data-icon="camera"></span>Snapshot</button>
+              <button id="testAiBtn" class="btn primary" type="button"><span data-icon="spark"></span>Test AI</button>
+            </div>
+          </div>
+          <div class="panel-body detail-grid">
+            <article class="live-card" id="liveCard"><header><strong>Live</strong><span class="badge">loading</span></header><div class="empty">Loading camera.</div></article>
+            <aside class="metrics" id="cameraMetrics"></aside>
+          </div>
+        </section>
+
+        <section class="panel">
+          <div class="panel-head">
+            <div><h3>Camera Recordings</h3><p class="muted">Video evidence filtered to this camera.</p></div>
+            <div class="toolbar">
+              <input id="recordingDateFrom" type="date" title="From date">
+              <input id="recordingDateTo" type="date" title="To date">
+              <select id="recordingLayoutSelect" aria-label="Layout select"><option value="grid">Grid View</option><option value="list">List View</option></select>
+              <select id="recordingGridCols" aria-label="Grid columns select"><option value="2">2 Columns</option><option value="3">3 Columns</option></select>
+              <select id="recordingPageSize" aria-label="Page size select"><option>6</option><option>12</option><option>24</option></select>
+              <label class="check-row" style="min-height: 40px; display: inline-flex; align-items: center; margin-bottom: 0; padding: 0 12px; gap: 6px; border: 1px solid var(--line); border-radius: var(--radius); background: rgba(2, 6, 23, .28); color: var(--muted); font-size: 12px; font-weight: 700; cursor: pointer;">
+                <input id="recordingShowThumb" type="checkbox" checked style="width: 16px; min-height: 16px; margin: 0; accent-color: var(--good); cursor: pointer;"> Show Thumbs
+              </label>
+              <label class="check-row" style="min-height: 40px; display: inline-flex; align-items: center; margin-bottom: 0; padding: 0 12px; gap: 6px; border: 1px solid var(--line); border-radius: var(--radius); background: rgba(2, 6, 23, .28); color: var(--muted); font-size: 12px; font-weight: 700; cursor: pointer;">
+                <input id="recordingMaskCover" type="checkbox" checked style="width: 16px; min-height: 16px; margin: 0; accent-color: var(--good); cursor: pointer;"> Play Cover
+              </label>
+              <button id="refreshRecordingsBtn" class="btn" type="button"><span data-icon="refresh"></span>Refresh</button>
+              <button id="clearRecordingsBtn" class="btn danger" type="button"><span data-icon="trash"></span>Clear recordings</button>
+            </div>
+          </div>
+          <div class="panel-body"><div id="recordingsGrid" class="recordings-grid"></div></div>
+          <div class="pager"><span id="recordingsPageInfo" class="muted">Page 1</span><div class="actions"><button id="prevRecordingPageBtn" class="btn small"><span data-icon="chevron-left"></span>Previous</button><button id="nextRecordingPageBtn" class="btn small">Next<span data-icon="chevron-right"></span></button></div></div>
+        </section>
+
+        <section class="panel">
+          <div class="panel-head">
+            <div><h3>Camera Events</h3><p class="muted">Timeline filtered to this camera.</p></div>
+            <div class="toolbar">
+              <select id="eventFilterStatus">
+                <option value="">All statuses</option>
+                <option value="verified" selected>verified</option>
+                <option value="teldrive_video_uploaded">teldrive_video_uploaded</option>
+                <option value="stream_reconnect">stream_reconnect</option>
+                <option value="ai_error">ai_error</option>
+              </select>
+              <select id="eventFilterAI"><option value="">All AI results</option><option>SAFE</option><option>EMERGENCY</option></select>
+              <select id="eventPageSize"><option>10</option><option>25</option><option>50</option></select>
+              <button id="refreshEventsBtn" class="btn" type="button"><span data-icon="refresh"></span>Refresh</button>
+              <button id="clearEventsBtn" class="btn danger" type="button"><span data-icon="trash"></span>Clear</button>
+            </div>
+          </div>
+          <div style="overflow:auto;">
+            <table><thead><tr><th>Evidence</th><th>Time</th><th>Camera</th><th>Status</th><th>AI</th><th>Description</th></tr></thead><tbody id="eventsBody"></tbody></table>
+          </div>
+          <div class="pager"><span id="eventsPageInfo" class="muted">Page 1</span><div class="actions"><button id="prevPageBtn" class="btn small"><span data-icon="chevron-left"></span>Previous</button><button id="nextPageBtn" class="btn small">Next<span data-icon="chevron-right"></span></button></div></div>
+        </section>
+      </section>
+    </main>
+  </div>
+  <dialog id="confirmDialog"><div class="dialog-body"><h3 id="confirmTitle">Confirm</h3><p id="confirmMessage" class="muted"></p><b id="confirmScope"></b><div class="actions"><button class="btn" data-cancel type="button">Cancel</button><button id="confirmActionBtn" class="btn danger" type="button">Confirm</button></div></div></dialog>
+  <dialog id="viewerDialog">
+    <div class="dialog-head">
+      <div><h3 id="viewerTitle">Viewer</h3><p class="muted">Evidence preview</p></div>
+      <div class="actions">
+        <button id="openViewerBtn" class="btn small" type="button">Open tab</button>
+        <button class="btn small" data-close-dialog="viewerDialog" type="button">Close</button>
+      </div>
+    </div>
+    <div id="viewerBody" class="viewer-body"></div>
+  </dialog>
+  <dialog id="cameraDialog">
+    <div class="dialog-head">
+      <div>
+        <h3 id="dialogTitle">Edit camera</h3>
+        <p class="help-text">Camera source and evidence options.</p>
+      </div>
+      <button class="btn small" data-close-dialog="cameraDialog" type="button">Close</button>
+    </div>
+    <div class="dialog-body">
+      <div class="form-grid">
+        <label class="check-row full"><input id="camEnabled" type="checkbox">Enabled</label>
+        <div class="field"><label for="camName">Tên camera / source go2rtc *</label><input id="camName" autocomplete="off" placeholder="h9c_cam1" required></div>
+        <div class="field"><label for="camPrompt">Prompt</label><select id="camPrompt"><option value="">Default prompt</option></select></div>
+        <div class="field full">
+          <label for="camGo2rtc">go2rtc frame URL hoặc source *</label>
+          <input id="camGo2rtc" autocomplete="off" placeholder="h9c_cam1 hoặc https://go2rtc.example/api/frame.jpeg?src=h9c_cam1">
+          <span class="help-text">Nguồn chính để lấy thumbnail, AI snapshot và monitor. Nếu chỉ nhập source ngắn, Settings phải có go2rtc URL chung. Nếu camera dùng hostname riêng, nhập full frame URL.</span>
+        </div>
+        <div class="field full">
+          <label for="camLive">go2rtc live URL</label>
+          <input id="camLive" autocomplete="off" placeholder="https://go2rtc.example/stream.html?src=h9c_cam1">
+          <span class="help-text">Tuỳ chọn. Nếu trống, web tự tạo live URL từ go2rtc URL chung và source.</span>
+        </div>
+        <div class="field full">
+          <label for="camRtsp">RTSP URL Camera (fallback)</label>
+          <input id="camRtsp" autocomplete="off" placeholder="rtsp://10.10.0.2:8554/h9c_cam1">
+          <span class="help-text">Chỉ dùng dự phòng khi không có go2rtc. Với HEVC/H.265 nên ưu tiên go2rtc để tránh live đen và log decode.</span>
+        </div>
+        <div class="field full">
+          <label for="camLiveMode">Chế độ live</label>
+          <select id="camLiveMode">
+            <option value="auto">Tự động: go2rtc iframe</option>
+            <option value="iframe">go2rtc iframe / MSE</option>
+            <option value="snapshot">Snapshot refresh cho HEVC</option>
+          </select>
+          <span class="help-text">HEVC/H.265 thường không hiển thị trong MSE trên browser. Chọn Snapshot refresh nếu live bị đen.</span>
+        </div>
+        <div class="field">
+          <label>Lưu trữ local</label>
+          <div class="stack">
+            <label class="check-row"><input id="camSaveImages" type="checkbox">Lưu ảnh sự kiện trên VPS</label>
+            <label class="check-row"><input id="camSaveVideos" type="checkbox">Lưu video ghi hình trên VPS</label>
+          </div>
+        </div>
+        <div class="field">
+          <label>Upload / ghi hình</label>
+          <div class="stack">
+            <label class="check-row"><input id="camUploadImages" type="checkbox">Upload ảnh sự kiện</label>
+            <label class="check-row"><input id="camRecordVideo" type="checkbox">Ghi và upload video</label>
+          </div>
+        </div>
+        <div class="field"><label for="camRecordSeconds">Thời lượng quay video (giây)</label><input id="camRecordSeconds" type="number" min="1"></div>
+        <div class="field"><label for="camRecordCooldown">Thời gian chờ trước lần quay tiếp theo (giây)</label><input id="camRecordCooldown" type="number" min="1"></div>
+      </div>
+    </div>
+    <div class="dialog-foot">
+      <button class="btn" data-close-dialog="cameraDialog" type="button">Cancel</button>
+      <button id="saveBtn" class="btn primary" type="button">Save camera</button>
+    </div>
+  </dialog>
+  <script>
+    const icons = {
+      "shield-pulse": '<svg viewBox="0 0 24 24"><path d="M12 3l7 3v5c0 4.7-2.8 8.4-7 10-4.2-1.6-7-5.3-7-10V6l7-3z"/><path d="M8 12h2l1.2-3 2.1 6 1.1-3H16"/></svg>',
+      layout: '<svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="18" height="7"/></svg>',
+      camera: '<svg viewBox="0 0 24 24"><path d="M14 7l-1.4-2H8L6.6 7H4a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2z"/><circle cx="12" cy="13" r="3"/></svg>',
+      "file-text": '<svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M8 13h8M8 17h6"/></svg>',
+      monitor: '<svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="12" rx="2"/><path d="M8 20h8M12 16v4"/></svg>',
+      settings: '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.6V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1-1.6 1.7 1.7 0 0 0-1.9.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.9 1.7 1.7 0 0 0-1.6-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.6-1 1.7 1.7 0 0 0-.3-1.9l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.9.3h.1a1.7 1.7 0 0 0 1-1.6V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.6h.1a1.7 1.7 0 0 0 1.9-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.9v.1a1.7 1.7 0 0 0 1.6 1h.1a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.6 1z"/></svg>',
+      wrench: '<svg viewBox="0 0 24 24"><path d="M14.7 6.3a4 4 0 0 0-5 5L3 18v3h3l6.7-6.7a4 4 0 0 0 5-5l-2.4 2.4-2.6-2.6z"/></svg>',
+      play: '<svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>',
+      stop: '<svg viewBox="0 0 24 24"><rect x="6" y="6" width="12" height="12"/></svg>',
+      refresh: '<svg viewBox="0 0 24 24"><path d="M21 12a9 9 0 0 1-15.4 6.4L3 16"/><path d="M3 21v-5h5"/><path d="M3 12A9 9 0 0 1 18.4 5.6L21 8"/><path d="M21 3v5h-5"/></svg>',
+      logout: '<svg viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="M16 17l5-5-5-5"/><path d="M21 12H9"/></svg>',
+      spark: '<svg viewBox="0 0 24 24"><path d="M13 2l-2 7-7 2 7 2 2 7 2-7 7-2-7-2z"/></svg>',
+      trash: '<svg viewBox="0 0 24 24"><path d="M3 6h18"/><path d="M8 6V4h8v2"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6"/></svg>',
+      "arrow-left": '<svg viewBox="0 0 24 24"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>',
+      "chevron-left": '<svg viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"/></svg>',
+      "chevron-right": '<svg viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></svg>',
+      video: '<svg viewBox="0 0 24 24"><rect x="3" y="5" width="14" height="14" rx="2"/><path d="M17 9l4-2v10l-4-2z"/></svg>',
+      "prompt-icon": '<svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M16 13H8M16 17H8"/></svg>',
+      "link-icon": '<svg viewBox="0 0 24 24"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>',
+      edit: '<svg viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>'
+    };
+
+    document.querySelectorAll("[data-icon]").forEach(el => { el.innerHTML = icons[el.dataset.icon] || ""; });
+
+    const routeCameraName = {{ camera_name|tojson }};
+    const state = { index:-1, camera:null, prompts:[], go2rtcUrl:"", eventsPage:1, eventsTotal:0, recordingsPage:1, recordingsTotal:0, liveTimer:null, viewerUrl:"", viewerMode:"image" };
+    const $ = id => document.getElementById(id);
+    const esc = value => String(value ?? "").replace(/[&<>"']/g, ch => ({ "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#39;" }[ch]));
+    function setText(id, value) { const el = $(id); if (el) el.textContent = value; }
+    function showToast(message, type = "info") {
+      const toast = document.createElement("div");
+      toast.className = `toast ${type === "err" ? "bad" : type === "ok" ? "good" : "info"}`;
+      toast.textContent = message;
+      document.body.appendChild(toast);
+      setTimeout(() => toast.remove(), 4200);
+    }
+    async function api(url, options = {}) {
+      const timeout = options.timeout || 30000;
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), timeout);
+      try {
+        const res = await fetch(url, { ...options, signal: controller.signal });
+        const text = await res.text();
+        let data = {};
+        try { data = text ? JSON.parse(text) : {}; } catch { data = { raw:text }; }
+        if (!res.ok) throw new Error(data.detail || data.message || `HTTP ${res.status}`);
+        return data;
+      } finally { clearTimeout(timer); }
+    }
+    function formatTimeUtc7(value) {
+      if (!value) return "-";
+      const raw = String(value).trim();
+      const date = new Date(/^\d{4}-\d{2}-\d{2}T/.test(raw) && !(/[zZ]|[+-]\d{2}:?\d{2}$/.test(raw)) ? `${raw}Z` : raw);
+      if (Number.isNaN(date.getTime())) return raw;
+      const parts = new Intl.DateTimeFormat("en-GB", { timeZone:"Asia/Ho_Chi_Minh", day:"2-digit", month:"2-digit", year:"numeric", hour:"2-digit", minute:"2-digit", second:"2-digit", hour12:false }).formatToParts(date).reduce((a,p) => (a[p.type]=p.value,a), {});
+      return `${parts.day}/${parts.month}/${parts.year} - ${parts.hour}:${parts.minute}:${parts.second}`;
+    }
+    function eventDescription(event) { return event.message || event.ai_raw || event.description || event.error || "-"; }
+    function badgeClass(value) {
+      const v = String(value || "").toUpperCase();
+      if (v === "EMERGENCY" || v === "ERROR" || v === "STOPPED") return "bad";
+      if (v === "SAFE" || v === "RUNNING" || v === "ENABLED") return "good";
+      return "info";
+    }
+    function promptTitle(id) {
+      const prompt = state.prompts.find(item => item.id === id);
+      return prompt ? prompt.title || "Untitled prompt" : "Default prompt";
+    }
+    function go2rtcSourceFromInput(value) {
+      const text = String(value || "").trim();
+      if (!text) return "";
+      try { const url = new URL(text); return url.searchParams.get("src") || url.pathname.replace(/\/+$/, "").split("/").pop() || ""; } catch { return text; }
+    }
+    function cameraSnapshotUrl(refresh = false) { return `/api/camera/snapshot?index=${state.index}${refresh ? "&refresh=1" : ""}&v=${Date.now()}`; }
+    function go2rtcStreamUrl(src) { return `${String(state.go2rtcUrl || "").replace(/\/$/, "")}/stream.html?src=${encodeURIComponent(src)}`; }
+    function liveSource() {
+      const camera = state.camera || {};
+      const liveMode = camera.live_mode || "auto";
+      if (camera.live_url && liveMode !== "snapshot") return { mode:"iframe", url:camera.live_url };
+      const go2rtcSrc = go2rtcSourceFromInput(camera.go2rtc_src) || camera.name || "";
+      if (liveMode === "snapshot" && (go2rtcSrc || camera.rtsp_url)) return { mode:"snapshot", url:cameraSnapshotUrl(true) };
+      if (state.go2rtcUrl && go2rtcSrc) return { mode:"iframe", url:go2rtcStreamUrl(go2rtcSrc) };
+      if (camera.rtsp_url) return { mode:"img", url:`/api/camera/video?index=${state.index}` };
+      return { mode:"empty", url:"" };
+    }
+    function renderLive() {
+      if (state.liveTimer) clearInterval(state.liveTimer);
+      const camera = state.camera || {};
+      const name = camera.name || routeCameraName;
+      const source = liveSource();
+      const card = $("liveCard");
+      card.innerHTML = `<header><strong>${esc(name)}</strong><span class="badge">${esc(source.mode)}</span></header>`;
+      if (source.mode === "iframe") {
+        card.insertAdjacentHTML("beforeend", `<iframe title="${esc(name)}" src="${esc(source.url)}" allow="autoplay; fullscreen; picture-in-picture"></iframe>`);
+      } else if (source.mode === "snapshot") {
+        const img = document.createElement("img");
+        img.alt = name;
+        img.src = cameraSnapshotUrl(true);
+        state.liveTimer = setInterval(() => { img.src = cameraSnapshotUrl(true); }, 2500);
+        card.appendChild(img);
+      } else if (source.mode === "img") {
+        card.insertAdjacentHTML("beforeend", `<img alt="${esc(name)}" src="${esc(source.url)}&ts=${Date.now()}">`);
+      } else {
+        card.insertAdjacentHTML("beforeend", `<div class="empty">No live source configured.</div>`);
+      }
+      $("cameraMetrics").innerHTML = `
+        <div class="metric-card">
+          <div class="metric-card-label"><span data-icon="shield-pulse"></span>Status</div>
+          <div class="metric-card-value"><span class="badge ${camera.enabled ? "good" : "bad"}">${camera.enabled ? "Enabled" : "Disabled"}</span></div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-card-label"><span data-icon="prompt-icon"></span>Prompt</div>
+          <div class="metric-card-value truncate" title="${esc(promptTitle(camera.prompt_id))}">${esc(promptTitle(camera.prompt_id))}</div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-card-label"><span data-icon="video"></span>Recordings</div>
+          <div class="metric-card-value"><span class="badge ${camera.teldrive_record_enabled ? "good" : "info"}">${camera.teldrive_record_enabled ? "Active" : "Disabled"}</span></div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-card-label"><span data-icon="monitor"></span>Live Mode</div>
+          <div class="metric-card-value">${esc(source.mode.toUpperCase())}</div>
+        </div>
+        <div class="metric-card full-width">
+          <div class="metric-card-label"><span data-icon="link-icon"></span>go2rtc Source</div>
+          <div class="metric-card-value truncate" title="${esc(camera.go2rtc_src || "-")}">${esc(camera.go2rtc_src || "-")}</div>
+        </div>`;
+      $("cameraMetrics").querySelectorAll("[data-icon]").forEach(el => { el.innerHTML = icons[el.dataset.icon] || ""; });
+    }
+    async function loadCamera() {
+      const data = await api(`/api/camera/detail/${encodeURIComponent(routeCameraName)}`);
+      state.index = data.index;
+      state.camera = data.camera || {};
+      state.prompts = data.prompts || [];
+      state.go2rtcUrl = data.go2rtc_url || "";
+      const status = data.status || {};
+      setText("pageTitle", state.camera.name || routeCameraName);
+      setText("cameraName", state.camera.name || routeCameraName);
+      setText("pageMeta", "Review one camera timeline and recordings.");
+      setText("cameraMeta", `${state.camera.enabled ? "Enabled" : "Disabled"} - ${state.camera.go2rtc_src || state.camera.rtsp_url || state.camera.live_url || "No source"}`);
+      
+      const running = status.running;
+      $("monitorStatus").textContent = running ? "Running" : "Stopped";
+      $("runDot").className = `dot ${running ? "running" : "bad"}`;
+      renderLive();
+      updateToggleBtn();
+    }
+    async function loadStatus() {
+      const data = await api("/api/status");
+      const system = data.system || {};
+      setText("cpuStat", `${system.cpu_percent ?? "-"}%`);
+      setText("ramStat", `${system.ram_percent ?? "-"}%`);
+      setText("diskStat", `${system.disk_percent ?? "-"}%`);
+      
+      const running = data.status?.running;
+      $("monitorStatus").textContent = running ? "Running" : "Stopped";
+      $("runDot").className = `dot ${running ? "running" : "bad"}`;
+    }
+    async function loadEvents() {
+      const limit = Number($("eventPageSize").value || 10);
+      const params = new URLSearchParams({
+        page: String(state.eventsPage),
+        limit: String(limit),
+        ai_result: $("eventFilterAI").value,
+        status: $("eventFilterStatus").value,
+        camera: state.camera.name || routeCameraName
+      });
+      const data = await api(`/api/events?${params}`);
+      state.eventsTotal = data.total || 0;
+      const events = data.events || [];
+      $("eventsBody").innerHTML = events.length ? events.map(event => `
+        <tr>
+          <td>${event.image_url ? `<img class="event-thumb view-event-image" src="${esc(event.image_url)}" data-url="${esc(event.image_url)}" data-title="${esc(event.camera || "Camera")} - ${esc(event.ai_result || "Event")}" loading="lazy" alt="Event image">` : '<span class="badge">No image</span>'}</td>
+          <td class="mono">${esc(formatTimeUtc7(event.time || event.time_local))}</td>
+          <td>${esc(event.camera || "-")}</td>
+          <td><span class="badge ${badgeClass(event.status)}">${esc(event.status || "-")}</span></td>
+          <td><span class="badge ${badgeClass(event.ai_result)}">${esc(event.ai_result || "-")}</span></td>
+          <td>${esc(eventDescription(event))}</td>
+        </tr>`).join("") : '<tr><td colspan="6"><div class="empty">No events found.</div></td></tr>';
+      const totalPages = Math.max(1, Math.ceil(state.eventsTotal / limit));
+      setText("eventsPageInfo", `Page ${state.eventsPage} of ${totalPages} - ${state.eventsTotal} events`);
+      $("prevPageBtn").disabled = state.eventsPage <= 1;
+      $("nextPageBtn").disabled = state.eventsPage >= totalPages;
+    }
+    async function loadRecordings() {
+      const limit = Number($("recordingPageSize").value || 6);
+      const params = new URLSearchParams({ page:String(state.recordingsPage), limit:String(limit), camera:state.camera.name || routeCameraName, date_from:$("recordingDateFrom").value, date_to:$("recordingDateTo").value });
+      const data = await api(`/api/recordings?${params}`);
+      state.recordingsTotal = data.total || 0;
+      const items = data.recordings || [];
+      
+      const showThumbs = $("recordingShowThumb").checked;
+      const layoutMode = $("recordingLayoutSelect").value;
+      const gridCols = $("recordingGridCols").value;
+      const maskCover = $("recordingMaskCover").checked;
+      
+      const grid = $("recordingsGrid");
+      grid.className = `recordings-grid ${layoutMode === "list" ? "list-view" : `cols-${gridCols}`} ${!showThumbs ? "no-thumbnails" : ""}`;
+
+      grid.innerHTML = items.length ? items.map((item, idx) => {
+        const timeStr = formatTimeUtc7(item.time || item.time_local);
+        const name = esc(item.camera || "Camera");
+        const thumbUrl = item.image_url || "";
+        
+        let mediaHtml = "";
+        if (maskCover) {
+          let imgHtml = "";
+          if (thumbUrl) {
+            imgHtml = `<img src="${esc(thumbUrl)}" loading="lazy" alt="recording thumbnail">`;
+          } else {
+            // Play icon centered on dark background
+            imgHtml = `<svg viewBox="0 0 24 24" style="width: 32px; height: 32px; color: var(--faint); opacity: 0.5;"><rect x="3" y="5" width="14" height="14" rx="2"/><path d="M17 9l4-2v10l-4-2z"/></svg>`;
+          }
+          mediaHtml = `
+            <div class="recording-thumb-wrapper play-recording" data-url="${esc(item.video_url || "")}" data-title="${name} - ${esc(timeStr)}">
+              <div class="play-button-overlay">
+                <svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+              </div>
+              ${imgHtml}
+            </div>
+          `;
+        } else {
+          const posterAttr = thumbUrl ? ` poster="${esc(thumbUrl)}"` : "";
+          mediaHtml = `
+            <div class="recording-thumb-wrapper" style="cursor: default;">
+              <video class="lazy-recording-video" controls preload="none"${posterAttr} data-src="${esc(item.video_url || "")}" data-title="${name} - ${esc(timeStr)}" style="width: 100%; height: 100%; object-fit: contain; background: #000; display: block;"></video>
+            </div>
+          `;
+        }
+
+        return `
+        <article class="recording-card">
+          ${mediaHtml}
+          <footer>
+            <div style="min-width: 0; flex: 1;">
+              <b class="truncate" style="display: block;">${name}</b>
+              <p class="muted small">${esc(timeStr)}</p>
+            </div>
+            <div class="actions" style="flex-shrink: 0; display: flex; gap: 6px;">
+              <button class="btn small play-recording" data-url="${esc(item.video_url || "")}" data-title="${name} - ${esc(timeStr)}" type="button">Play</button>
+              <button class="btn small copy-link" data-url="${esc(item.video_url || "")}" type="button" title="Copy video link"><svg viewBox="0 0 24 24" style="width: 15px; height: 15px; stroke: currentColor; stroke-width: 2; fill: none; stroke-linecap: round; stroke-linejoin: round;"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></button>
+            </div>
+          </footer>
+        </article>`;
+      }).join("") : '<div class="empty">No recordings found for this filter.</div>';
+      const totalPages = Math.max(1, Math.ceil(state.recordingsTotal / limit));
+      setText("recordingsPageInfo", `Page ${state.recordingsPage} of ${totalPages} - ${state.recordingsTotal} recordings`);
+      $("prevRecordingPageBtn").disabled = state.recordingsPage <= 1;
+      $("nextRecordingPageBtn").disabled = state.recordingsPage >= totalPages;
+    }
+    function askConfirm(title, message, scope) {
+      return new Promise(resolve => {
+        const dialog = $("confirmDialog");
+        setText("confirmTitle", title); setText("confirmMessage", message); setText("confirmScope", scope);
+        const action = $("confirmActionBtn");
+        const cleanup = value => { action.onclick = null; dialog.querySelector("[data-cancel]").onclick = null; if (dialog.open) dialog.close(); resolve(value); };
+        action.onclick = () => cleanup(true);
+        dialog.querySelector("[data-cancel]").onclick = () => cleanup(false);
+        dialog.showModal();
+      });
+    }
+    async function monitorAction(url) { const data = await api(url, { method:"POST", timeout:20000 }); showToast(data.message || "Done", "ok"); await loadStatus(); }
+    async function refreshAll() { await Promise.all([loadStatus(), loadEvents(), loadRecordings()]); }
+    
+    async function showViewer(title, url, mode = "image") {
+      state.viewerUrl = url;
+      state.viewerMode = mode;
+      setText("viewerTitle", title);
+      const body = $("viewerBody");
+      body.innerHTML = "";
+      if (mode === "iframe") {
+        const frame = document.createElement("iframe");
+        frame.src = url;
+        frame.title = title;
+        frame.allow = "autoplay; fullscreen; picture-in-picture";
+        body.appendChild(frame);
+        $("viewerDialog").showModal();
+      } else if (mode === "video") {
+        // Show loading spinner/message first
+        body.innerHTML = `
+          <div id="videoLoader" style="min-height: 180px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; width: 100%; text-align: center;">
+            <span class="loading-spinner" style="width: 32px; height: 32px; color: var(--good);">${icons.refresh}</span>
+            <div style="font-weight: 700; color: var(--text); font-size: 15px;">Đang chuẩn bị video từ Telegram...</div>
+            <div class="muted small" style="max-width: 340px; margin: 0 auto; line-height: 1.45; font-size: 12px;">Quá trình tải ban đầu có thể mất vài giây nếu tệp tin chưa được lưu bộ nhớ đệm.</div>
+          </div>`;
+        $("viewerDialog").showModal();
+
+        // Check if the user is still viewing the same video (avoid race condition if closed)
+        if (state.viewerUrl !== url) return;
+
+        const loader = $("videoLoader");
+        if (loader) loader.remove();
+
+        const video = document.createElement("video");
+        video.src = url;
+        video.controls = true;
+        video.autoplay = true;
+        video.preload = "metadata";
+        video.style.width = "100%";
+        video.addEventListener("error", () => {
+          showToast("Video không phát được trong trình duyệt. Có thể file cũ đang dùng HEVC/H.265.", "err");
+        }, { once: true });
+        body.appendChild(video);
+      } else {
+        const img = document.createElement("img");
+        img.src = url;
+        img.alt = title;
+        body.appendChild(img);
+        $("viewerDialog").showModal();
+      }
+    }
+
+    function updateToggleBtn() {
+      const toggleBtn = $("toggleBtn");
+      if (!toggleBtn) return;
+      if (state.camera && state.camera.enabled) {
+        toggleBtn.textContent = "Disable";
+        toggleBtn.className = "btn danger";
+      } else {
+        toggleBtn.textContent = "Enable";
+        toggleBtn.className = "btn primary";
+      }
+    }
+
+    async function toggleCamera() {
+      const toggleBtn = $("toggleBtn");
+      if (!toggleBtn || !state.camera) return;
+      toggleBtn.disabled = true;
+      const originalEnabled = state.camera.enabled;
+      const originalText = toggleBtn.innerHTML;
+      
+      // Optimistic update
+      state.camera.enabled = !originalEnabled;
+      updateToggleBtn();
+      toggleBtn.innerHTML = `<span class="loading-spinner">${icons.refresh}</span>${originalEnabled ? "Disabling..." : "Enabling..."}`;
+      
+      try {
+        const data = await api("/api/cameras");
+        const cameras = data.cameras || [];
+        if (state.index >= 0 && state.index < cameras.length) {
+          cameras[state.index].enabled = !originalEnabled;
+          const saveRes = await api("/api/cameras", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ cameras })
+          });
+          state.camera = saveRes.cameras[state.index];
+          showToast(saveRes.message || "Camera status updated", "ok");
+        }
+      } catch (err) {
+        state.camera.enabled = originalEnabled;
+        showToast(err.message || "Failed to update camera status", "err");
+      } finally {
+        toggleBtn.disabled = false;
+        updateToggleBtn();
+        await loadCamera();
+      }
+    }
+
+    let allCameras = [];
+    
+    function isHttpUrl(value) {
+      try {
+        const url = new URL(value);
+        return url.protocol === "http:" || url.protocol === "https:";
+      } catch {
+        return false;
+      }
+    }
+    
+    function validateCamera(camera) {
+      if (!camera.name) return "Tên camera là bắt buộc.";
+      if (!camera.go2rtc_src && !camera.rtsp_url) return "Cần nhập go2rtc frame URL/source hoặc RTSP fallback.";
+      if (camera.go2rtc_src && !isHttpUrl(camera.go2rtc_src) && !state.go2rtcUrl) {
+        return "Bạn đang nhập go2rtc source ngắn. Hãy cấu hình go2rtc URL trong Settings hoặc nhập full frame URL.";
+      }
+      return "";
+    }
+
+    async function openEditDialog() {
+      const editBtn = $("editBtn");
+      editBtn.disabled = true;
+      try {
+        const data = await api("/api/cameras");
+        allCameras = data.cameras || [];
+        state.prompts = data.prompts || [];
+        state.go2rtcUrl = data.go2rtc_url || "";
+        
+        // Fill prompt select
+        const select = $("camPrompt");
+        select.innerHTML = '<option value="">Default prompt</option>';
+        state.prompts.forEach(prompt => {
+          const option = document.createElement("option");
+          option.value = prompt.id;
+          option.textContent = prompt.title || "Untitled prompt";
+          select.appendChild(option);
+        });
+
+        const camera = allCameras[state.index];
+        if (camera) {
+          $("camEnabled").checked = camera.enabled !== false;
+          $("camName").value = camera.name || "";
+          $("camPrompt").value = camera.prompt_id || "";
+          $("camRtsp").value = camera.rtsp_url || "";
+          $("camGo2rtc").value = camera.go2rtc_src || "";
+          $("camLive").value = camera.live_url || "";
+          $("camLiveMode").value = camera.live_mode || "auto";
+          $("camSaveImages").checked = camera.local_save_images !== false;
+          $("camSaveVideos").checked = camera.local_save_videos !== false;
+          $("camUploadImages").checked = camera.teldrive_upload_images !== false;
+          $("camRecordVideo").checked = camera.teldrive_record_enabled === true;
+          $("camRecordSeconds").value = camera.record_seconds || 10;
+          $("camRecordCooldown").value = camera.record_cooldown || 300;
+          $("cameraDialog").showModal();
+        }
+      } catch (err) {
+        showToast(err.message || "Failed to load camera configuration", "err");
+      } finally {
+        editBtn.disabled = false;
+      }
+    }
+
+    function readDialogCamera() {
+      return {
+        enabled: $("camEnabled").checked,
+        name: $("camName").value.trim(),
+        rtsp_url: $("camRtsp").value.trim(),
+        go2rtc_src: $("camGo2rtc").value.trim(),
+        live_url: $("camLive").value.trim(),
+        live_mode: $("camLiveMode").value,
+        prompt_id: $("camPrompt").value,
+        local_save_images: $("camSaveImages").checked,
+        local_save_videos: $("camSaveVideos").checked,
+        teldrive_upload_images: $("camUploadImages").checked,
+        teldrive_record_enabled: $("camRecordVideo").checked,
+        record_seconds: Math.max(1, Number($("camRecordSeconds").value || 10)),
+        record_cooldown: Math.max(1, Number($("camRecordCooldown").value || 300))
+      };
+    }
+
+    async function saveEditedCamera() {
+      const camera = readDialogCamera();
+      const validation = validateCamera(camera);
+      if (validation) {
+        showToast(validation, "err");
+        return;
+      }
+      
+      const saveBtn = $("saveBtn");
+      saveBtn.disabled = true;
+      try {
+        allCameras[state.index] = camera;
+        const data = await api("/api/cameras", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ cameras: allCameras })
+        });
+        
+        $("cameraDialog").close();
+        showToast(data.message || "Camera updated successfully", "ok");
+        
+        // If name has changed, redirect. Otherwise reload.
+        if (camera.name !== routeCameraName) {
+          window.location.href = `/camera/${encodeURIComponent(camera.name)}`;
+        } else {
+          await loadCamera();
+        }
+      } catch (err) {
+        showToast(err.message || "Failed to save camera", "err");
+      } finally {
+        saveBtn.disabled = false;
+      }
+    }
+
+    document.addEventListener("click", event => {
+      const playBtn = event.target.closest(".play-recording");
+      if (playBtn) {
+        showViewer(playBtn.dataset.title, playBtn.dataset.url, "video");
+      }
+      const lazyVideo = event.target.closest(".lazy-recording-video");
+      if (lazyVideo && !lazyVideo.getAttribute("src")) {
+        lazyVideo.src = lazyVideo.dataset.src || "";
+        lazyVideo.load();
+        lazyVideo.play().catch(() => {});
+      }
+      const eventImg = event.target.closest(".view-event-image");
+      if (eventImg) {
+        showViewer(eventImg.dataset.title, eventImg.dataset.url, "image");
+      }
+      const copyBtn = event.target.closest(".copy-link");
+      if (copyBtn) {
+        const url = copyBtn.dataset.url;
+        if (url) {
+          const absoluteUrl = new URL(url, window.location.origin).href;
+          navigator.clipboard.writeText(absoluteUrl).then(() => {
+            showToast("Copied video link to clipboard!", "ok");
+          }).catch(err => {
+            showToast("Failed to copy link", "err");
+            console.error(err);
+          });
+        }
+      }
+      const closer = event.target.closest("[data-close-dialog]");
+      if (closer) {
+        $(closer.dataset.closeDialog).close();
+      }
+    });
+
+    $("openViewerBtn").onclick = () => { if (state.viewerUrl) window.open(state.viewerUrl, "_blank"); };
+    $("viewerDialog").addEventListener("close", () => { $("viewerBody").innerHTML = ""; });
+
+    $("startBtn").onclick = () => monitorAction("/api/start").catch(err => showToast(err.message, "err"));
+    $("stopBtn").onclick = () => monitorAction("/api/stop").catch(err => showToast(err.message, "err"));
+    $("refreshAllBtn").onclick = () => refreshAll().catch(err => showToast(err.message, "err"));
+    $("snapshotBtn").onclick = () => window.open(cameraSnapshotUrl(true), "_blank");
+    $("testAiBtn").onclick = async () => {
+      try { const data = await api(`/api/test-ai-camera?index=${state.index}`, { method:"POST", timeout:150000 }); showToast(`AI: ${data.result || "done"}`, "ok"); await loadEvents(); }
+      catch (err) { showToast(err.message, "err"); }
+    };
+    function savePreferences() {
+      try {
+        localStorage.setItem("pref_recording_layout", $("recordingLayoutSelect").value);
+        localStorage.setItem("pref_recording_grid_cols", $("recordingGridCols").value);
+        localStorage.setItem("pref_recording_page_size", $("recordingPageSize").value);
+        localStorage.setItem("pref_recording_show_thumb", $("recordingShowThumb").checked ? "1" : "0");
+        localStorage.setItem("pref_recording_mask_cover", $("recordingMaskCover").checked ? "1" : "0");
+        
+        localStorage.setItem("pref_event_filter_ai", $("eventFilterAI").value);
+        localStorage.setItem("pref_event_filter_status", $("eventFilterStatus").value);
+        localStorage.setItem("pref_event_page_size", $("eventPageSize").value);
+      } catch (e) {
+        console.error("Failed to save preferences to localStorage", e);
+      }
+    }
+
+    function loadPreferences() {
+      try {
+        const layout = localStorage.getItem("pref_recording_layout");
+        if (layout) $("recordingLayoutSelect").value = layout;
+
+        const cols = localStorage.getItem("pref_recording_grid_cols");
+        if (cols) $("recordingGridCols").value = cols;
+
+        const size = localStorage.getItem("pref_recording_page_size");
+        if (size) $("recordingPageSize").value = size;
+
+        const showThumb = localStorage.getItem("pref_recording_show_thumb");
+        if (showThumb !== null) $("recordingShowThumb").checked = showThumb === "1";
+
+        const maskCover = localStorage.getItem("pref_recording_mask_cover");
+        if (maskCover !== null) $("recordingMaskCover").checked = maskCover === "1";
+
+        const eventFilter = localStorage.getItem("pref_event_filter_ai");
+        if (eventFilter) $("eventFilterAI").value = eventFilter;
+
+        const eventStatusFilter = localStorage.getItem("pref_event_filter_status");
+        if (eventStatusFilter !== null) {
+          $("eventFilterStatus").value = eventStatusFilter;
+        } else {
+          $("eventFilterStatus").value = "verified"; // Default filter is verified
+        }
+
+        const eventPageSize = localStorage.getItem("pref_event_page_size");
+        if (eventPageSize) $("eventPageSize").value = eventPageSize;
+
+        // Hide columns selector if list view
+        const isGrid = $("recordingLayoutSelect").value === "grid";
+        $("recordingGridCols").classList.toggle("hidden", !isGrid);
+      } catch (e) {
+        console.error("Failed to load preferences from localStorage", e);
+      }
+    }
+
+    $("refreshEventsBtn").onclick = () => { state.eventsPage = 1; loadEvents().catch(err => showToast(err.message, "err")); };
+    $("eventFilterAI").onchange = $("eventFilterStatus").onchange = $("eventPageSize").onchange = () => {
+      savePreferences();
+      state.eventsPage = 1;
+      loadEvents();
+    };
+    $("prevPageBtn").onclick = () => { if (state.eventsPage > 1) { state.eventsPage--; loadEvents(); } };
+    $("nextPageBtn").onclick = () => { state.eventsPage++; loadEvents(); };
+    $("clearEventsBtn").onclick = async () => {
+      const camera = state.camera.name || routeCameraName;
+      if (!(await askConfirm("Clear camera events", "Delete event timeline records for this camera.", camera))) return;
+      const data = await api(`/api/events?camera=${encodeURIComponent(camera)}`, { method:"DELETE" });
+      showToast(data.message || "Events cleared", "ok"); state.eventsPage = 1; await loadEvents();
+    };
+    $("refreshRecordingsBtn").onclick = () => { state.recordingsPage = 1; loadRecordings().catch(err => showToast(err.message, "err")); };
+    $("recordingDateFrom").onchange = $("recordingDateTo").onchange = () => { state.recordingsPage = 1; loadRecordings(); };
+    $("recordingPageSize").onchange = $("recordingGridCols").onchange = $("recordingMaskCover").onchange = $("recordingShowThumb").onchange = () => {
+      savePreferences();
+      state.recordingsPage = 1;
+      loadRecordings();
+    };
+    $("recordingLayoutSelect").onchange = () => {
+      const isGrid = $("recordingLayoutSelect").value === "grid";
+      $("recordingGridCols").classList.toggle("hidden", !isGrid);
+      savePreferences();
+      state.recordingsPage = 1;
+      loadRecordings();
+    };
+    $("prevRecordingPageBtn").onclick = () => { if (state.recordingsPage > 1) { state.recordingsPage--; loadRecordings(); } };
+    $("nextRecordingPageBtn").onclick = () => { state.recordingsPage++; loadRecordings(); };
+    $("clearRecordingsBtn").onclick = async () => {
+      const camera = state.camera.name || routeCameraName;
+      if (!(await askConfirm("Clear camera recordings", "Delete recording records for this camera.", camera))) return;
+      const data = await api(`/api/recordings?camera=${encodeURIComponent(camera)}`, { method:"DELETE" });
+      showToast(data.message || "Recordings cleared", "ok"); state.recordingsPage = 1; await loadRecordings();
+    };
+    $("toggleBtn").onclick = () => toggleCamera().catch(err => showToast(err.message, "err"));
+    $("editBtn").onclick = () => openEditDialog().catch(err => showToast(err.message, "err"));
+    $("saveBtn").onclick = () => saveEditedCamera().catch(err => showToast(err.message, "err"));
+    loadPreferences();
+    loadCamera().then(() => Promise.all([loadStatus(), loadEvents(), loadRecordings()])).catch(err => showToast(err.message, "err"));
+    setInterval(() => loadStatus().catch(() => {}), 10000);
+  </script>
+</body>
+</html>
