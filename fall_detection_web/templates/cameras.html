@@ -315,6 +315,7 @@
     .badge {
       display: inline-flex;
       align-items: center;
+      gap: 7px;
       min-height: 28px;
       border: 1px solid var(--line);
       border-radius: 999px;
@@ -326,8 +327,20 @@
       white-space: nowrap;
     }
     .meta .badge { width: 100%; justify-content: space-between; border-radius: 8px; }
-    .badge.good { color: var(--good-ink); border-color: rgba(15, 122, 74, .44); background: rgba(15, 122, 74, .10); }
-    .badge.bad { color: var(--bad-ink); border-color: rgba(179, 38, 30, .44); background: rgba(179, 38, 30, .10); }
+    .badge.good { color: var(--good-ink); border-color: var(--good-edge); background: var(--good-wash); }
+    .badge.bad { color: var(--bad-ink); border-color: var(--bad-edge); background: var(--bad-wash); }
+    .badge.off { color: var(--neutral-ink); border-color: var(--neutral-edge); background: var(--neutral-wash); }
+    .badge.good::before, .badge.bad::before, .badge.warn::before, .badge.info::before, .badge.off::before {
+      content: "";
+      width: 8px;
+      height: 8px;
+      flex-shrink: 0;
+    }
+    .badge.good::before { border-radius: 50%; background: var(--good-ink); }
+    .badge.info::before { background: var(--info-ink); transform: rotate(45deg); }
+    .badge.warn::before { border-left: 4px solid transparent; border-right: 4px solid transparent; border-bottom: 7px solid var(--warn-ink); width: 0; height: 0; }
+    .badge.bad::before { background: var(--bad-ink); }
+    .badge.off::before { border-radius: 50%; background: transparent; border: 1.5px solid var(--neutral-ink); }
     .status { position: absolute; top: 13px; right: 54px; }
     .empty-panel {
       min-height: 180px;
@@ -702,7 +715,7 @@
                 <button class="btn small danger" data-delete="${index}" type="button">Delete</button>
               </div>
             </div>
-            <span class="badge status ${camera.enabled ? "good" : "bad"}">${camera.enabled ? "Enabled" : "Disabled"}</span>
+            <span class="badge status ${camera.enabled ? "good" : "off"}">${camera.enabled ? "Enabled" : "Disabled"}</span>
           </article>`;
       }).join("");
     }
@@ -717,7 +730,7 @@
       
       const statusBadge = card.querySelector(".status");
       if (statusBadge) {
-        statusBadge.className = `badge status ${camera.enabled ? "good" : "bad"}`;
+        statusBadge.className = `badge status ${camera.enabled ? "good" : "off"}`;
         statusBadge.textContent = camera.enabled ? "Enabled" : "Disabled";
       }
       

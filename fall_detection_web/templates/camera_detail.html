@@ -254,12 +254,24 @@
       font-size: 12px;
     }
     .status-chip { min-height: 38px; padding: 8px 12px; border-radius: 999px; }
-    .status-chip.good { border-color: rgba(15, 122, 74, .44); background: rgba(15, 122, 74, .10); color: var(--good-ink); }
-    
-    .badge.good { color: var(--good-ink); border-color: rgba(15, 122, 74, .44); background: rgba(15, 122, 74, .10); }
-    .badge.bad { color: var(--bad-ink); border-color: rgba(179, 38, 30, .44); background: rgba(179, 38, 30, .10); }
-    .badge.warn { color: var(--warn-ink); border-color: rgba(138, 90, 0, .44); background: rgba(138, 90, 0, .10); }
-    .badge.info { color: var(--info-ink); border-color: rgba(21, 101, 168, .44); background: rgba(21, 101, 168, .10); }
+
+    .badge.good, .status-chip.good { color: var(--good-ink); border-color: var(--good-edge); background: var(--good-wash); }
+    .badge.bad, .status-chip.bad { color: var(--bad-ink); border-color: var(--bad-edge); background: var(--bad-wash); }
+    .badge.warn, .status-chip.warn { color: var(--warn-ink); border-color: var(--warn-edge); background: var(--warn-wash); }
+    .badge.info, .status-chip.info { color: var(--info-ink); border-color: var(--info-edge); background: var(--info-wash); }
+    .badge.off, .status-chip.off { color: var(--neutral-ink); border-color: var(--neutral-edge); background: var(--neutral-wash); }
+    .badge.good::before, .badge.bad::before, .badge.warn::before, .badge.info::before, .badge.off::before,
+    .status-chip.good::before, .status-chip.bad::before, .status-chip.warn::before, .status-chip.info::before, .status-chip.off::before {
+      content: "";
+      width: 8px;
+      height: 8px;
+      flex-shrink: 0;
+    }
+    .badge.good::before, .status-chip.good::before { border-radius: 50%; background: var(--good-ink); }
+    .badge.info::before, .status-chip.info::before { background: var(--info-ink); transform: rotate(45deg); }
+    .badge.warn::before, .status-chip.warn::before { border-left: 4px solid transparent; border-right: 4px solid transparent; border-bottom: 7px solid var(--warn-ink); width: 0; height: 0; }
+    .badge.bad::before, .status-chip.bad::before { background: var(--bad-ink); }
+    .badge.off::before, .status-chip.off::before { border-radius: 50%; background: transparent; border: 1.5px solid var(--neutral-ink); }
 
     .dot {
       width: 9px;
@@ -321,7 +333,7 @@
     }
 
     table { width: 100%; border-collapse: collapse; }
-    th, td { padding: 12px; border-bottom: 1px solid var(--line); text-align: left; vertical-align: middle; }
+    th, td { padding: 14px 12px; border-bottom: 1px solid var(--line); text-align: left; vertical-align: middle; }
     th { color: var(--muted); font-size: 12px; font-weight: 700; background: var(--surface-2); }
     td { color: var(--text); }
     tr:hover td { background: rgba(238, 242, 246, .22); }
@@ -833,7 +845,7 @@
       $("cameraMetrics").innerHTML = `
         <div class="metric-card">
           <div class="metric-card-label"><span data-icon="shield-pulse"></span>Status</div>
-          <div class="metric-card-value"><span class="badge ${camera.enabled ? "good" : "bad"}">${camera.enabled ? "Enabled" : "Disabled"}</span></div>
+          <div class="metric-card-value"><span class="badge ${camera.enabled ? "good" : "off"}">${camera.enabled ? "Enabled" : "Disabled"}</span></div>
         </div>
         <div class="metric-card">
           <div class="metric-card-label"><span data-icon="prompt-icon"></span>Prompt</div>
