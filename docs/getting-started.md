@@ -110,6 +110,7 @@ mistake impossible to install rather than merely discouraged.
 **Running code:**
 
 ```bash
+make preflight      # ready for make dev? verdict + exit code
 make dev            # both apps, labelled output streams
 make dev-fall       # just fall_detection_web, :8090
 make dev-vision     # just simple_ai_vision, :8000

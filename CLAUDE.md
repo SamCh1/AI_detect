@@ -77,6 +77,7 @@ makes the `uvicorn app:app` trap in rule 2 unreachable. `make help` lists everyt
 ```bash
 rtk make setup    # both venvs + .env, then a readiness report
 rtk make doctor   # what is installed, what is missing, what to run next
+rtk make preflight # ready for make dev? verdict + non-zero exit when not
 rtk make dev      # both apps, labelled streams (vision :8000, fall :8090)
 rtk make logs     # follow app.log and any running container
 rtk make check    # byte-compile both apps
@@ -172,7 +173,7 @@ never delete the link as a duplicate.
 | `simple_ai_vision/README.md` | add-on install, HA automation wiring, `rest_command` examples |
 | `fall_detection_web/README.md` | VPS setup, go2rtc, systemd service, `.env` keys |
 | `README.md` (root) | repository-level overview and HA install — English |
-| `Makefile` | the commands; `make help` lists them, `make doctor` checks the env |
+| `Makefile` | the commands; `make help` lists them, `make preflight` says whether `make dev` will start |
 
 When something surprises you, add a numbered entry to **Conventions that bite** above.
 If that section outgrows this file, split it into `docs/claude/gotchas.md` and link it

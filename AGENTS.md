@@ -58,6 +58,7 @@ Every target runs from the repo root. Both apps are driven from one Makefile.
 ```bash
 make setup    # both venvs + .env, then a readiness report — start here
 make doctor   # health check: pythons, venvs, .env, docker, code indexes
+make preflight # can this machine run make dev right now? verdict + exit code
 make dev      # run both apps together (vision :8000, fall :8090)
 make logs     # follow every log this repo produces (app.log + containers)
 make check    # byte-compile both apps

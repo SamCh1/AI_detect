@@ -95,7 +95,7 @@ COLIMA_CTX := $(if $(filter default,$(COLIMA_PROFILE)),colima,colima-$(COLIMA_PR
 HAS_COLIMA  := $(shell command -v colima 2>/dev/null)
 DOCKER_HINT := $(if $(HAS_COLIMA),make colima-up,start your docker engine (Docker Desktop, OrbStack, Rancher Desktop, ...))
 
-.PHONY: help setup reset doctor dev dev-vision dev-fall logs version bump \
+.PHONY: help setup reset doctor preflight dev dev-vision dev-fall logs version bump \
         colima-up colima-down colima-reset docker-vision require-docker \
         graph inventory check clean lock require-uv \
         _venv-fall _venv-vision _env _export
@@ -182,6 +182,86 @@ endif
 	@command -v codegraph >/dev/null 2>&1 && echo "  codegraph $$(codegraph --version 2>&1)" || echo "  codegraph not installed (optional)"
 	@git check-ignore -q .codegraph && echo "  .codegraph ignored" || echo "  WARN: .codegraph is NOT gitignored -- never commit the graph"
 	@[ -f .codesight/routes.md ] && echo "  .codesight inventory present" || echo "  .codesight missing -> make inventory"
+	@echo "-- verdict"
+	@echo "  none here on purpose: doctor describes, it never fails."
+	@echo "  make preflight answers the yes/no question -- can this machine run make dev?"
+
+# doctor DESCRIBES the machine; preflight JUDGES it, against one question only:
+# will `make dev` come up right now? So it checks the four things that recipe
+# actually touches -- a venv with uvicorn in it, the pinned interpreter, the
+# dependencies uv.lock names, app.py, and a free port -- and nothing else.
+# Docker, colima and the code indexes are absent on purpose: `make dev` never
+# touches them, so a broken daemon must not read as "not ready to run".
+#
+# It exits non-zero when it fails, which doctor never does, so it is the one
+# target worth putting in front of a script or a fresh checkout.
+#
+# The dependency check is `uv sync --locked --check`: read-only, ~50ms, and it
+# compares the INSTALLED packages against uv.lock rather than merely proving a
+# venv directory exists. `uv lock --check` runs first only to split the two
+# failures apart -- a stale lockfile needs `make lock`, a drifted venv needs
+# `make setup`, and one message for both would send you to the wrong one.
+preflight: ## Ready for make dev? Pass/fail verdict, non-zero when not
+	@fail=0; \
+	echo "==> preflight -- exactly what make dev needs, nothing else"; \
+	echo ""; \
+	if command -v uv >/dev/null 2>&1; then \
+	  have_uv=1; printf "  %-6s %-30s %s\n" "ok" "uv" "$$(uv --version 2>&1)"; \
+	else \
+	  have_uv=0; printf "  %-6s %-30s %s\n" "warn" "uv" "absent -- venvs cannot be verified or rebuilt"; \
+	fi; \
+	for triple in "$(FALL_DIR):$(VENV):$(FALL_PORT)" "$(VISION_DIR):$(VISION_VENV):$(VISION_PORT)"; do \
+	  d=$${triple%%:*}; rest=$${triple#*:}; v=$${rest%%:*}; p=$${rest##*:}; \
+	  echo ""; \
+	  if [ -x "$$v/bin/uvicorn" ]; then \
+	    pv=$$("$$v/bin/python" -V 2>&1 | awk '{ print $$2 }'); \
+	    case "$$pv" in \
+	      $(PY_VERSION).*) printf "  %-6s %-30s %s\n" "ok" "$$v" "uvicorn on python $$pv" ;; \
+	      *) fail=$$((fail+1)); printf "  %-6s %-30s %s\n" "FAIL" "$$v" "python $$pv, want $(PY_VERSION) -> make reset" ;; \
+	    esac; \
+	  else \
+	    fail=$$((fail+1)); printf "  %-6s %-30s %s\n" "FAIL" "$$v" "no uvicorn here -> make setup"; \
+	  fi; \
+	  if [ "$$have_uv" = 1 ]; then \
+	    if ! uv lock --directory $$d --check >/dev/null 2>&1; then \
+	      fail=$$((fail+1)); printf "  %-6s %-30s %s\n" "FAIL" "$$d/uv.lock" "stale vs pyproject.toml -> make lock"; \
+	    elif ! uv sync --directory $$d --locked --check >/dev/null 2>&1; then \
+	      fail=$$((fail+1)); printf "  %-6s %-30s %s\n" "FAIL" "$$d deps" "venv disagrees with uv.lock -> make setup"; \
+	    else \
+	      printf "  %-6s %-30s %s\n" "ok" "$$d deps" "every package uv.lock pins is installed"; \
+	    fi; \
+	  fi; \
+	  if [ -f "$$d/app.py" ]; then \
+	    printf "  %-6s %-30s %s\n" "ok" "$$d/app.py" "present -- uvicorn app:app resolves"; \
+	  else \
+	    fail=$$((fail+1)); printf "  %-6s %-30s %s\n" "FAIL" "$$d/app.py" "missing -- uvicorn app:app has nothing to import"; \
+	  fi; \
+	  if command -v lsof >/dev/null 2>&1; then \
+	    who=$$(lsof -nP -iTCP:$$p -sTCP:LISTEN 2>/dev/null | awk 'NR==2 { print $$1 " pid " $$2 }'); \
+	    if [ -n "$$who" ]; then \
+	      fail=$$((fail+1)); printf "  %-6s %-30s %s\n" "FAIL" "port $$p" "already held by $$who"; \
+	    else \
+	      printf "  %-6s %-30s %s\n" "ok" "port $$p" "free"; \
+	    fi; \
+	  else \
+	    printf "  %-6s %-30s %s\n" "skip" "port $$p" "no lsof here -- uvicorn will tell you"; \
+	  fi; \
+	done; \
+	echo ""; \
+	echo "  -- optional, never blocks make dev"; \
+	[ -f "$(FALL_DIR)/.env" ] \
+	  && printf "  %-6s %-30s %s\n" "note" "$(FALL_DIR)/.env" "present" \
+	  || printf "  %-6s %-30s %s\n" "note" "$(FALL_DIR)/.env" "absent -- config falls back to SQLite (make setup writes one)"; \
+	[ -f "$(FALL_DIR)/yolov8n.pt" ] \
+	  && printf "  %-6s %-30s %s\n" "note" "$(FALL_DIR)/yolov8n.pt" "present" \
+	  || printf "  %-6s %-30s %s\n" "note" "$(FALL_DIR)/yolov8n.pt" "absent -- ultralytics downloads it when monitoring first starts"; \
+	echo ""; \
+	if [ "$$fail" = 0 ]; then \
+	  echo "READY -- make dev   vision http://localhost:$(VISION_PORT), fall http://localhost:$(FALL_PORT)"; \
+	else \
+	  echo "NOT READY -- $$fail blocking problem(s); every FAIL line above names its fix"; \
+	  exit 1; \
+	fi
 
 # Internal. Folded into `setup` on purpose -- there is no reason for a new
 # contributor to have to know these exist, or the order they run in.

@@ -79,6 +79,7 @@ things that go wrong. The summary below is the reference version.
 ```bash
 make setup    # both venvs + .env, then a readiness report — start here
 make doctor   # what is installed, what is missing, what to run next
+make preflight # ready for make dev? pass/fail, exits non-zero when not
 make dev      # run both apps together, labelled streams
 make logs     # follow app.log and any running container
 make help     # every target
