@@ -18,6 +18,7 @@ ROOT = Path(__file__).resolve().parent
 DATA_DIR = ROOT / "data"
 DB_PATH = DATA_DIR / "fall_detection.db"
 EVENT_IMAGES_DIR = DATA_DIR / "event_images"
+EVENT_CLIPS_DIR = DATA_DIR / "event_clips"
 # Legacy JSONL path for one-time migration
 LEGACY_EVENTS_PATH = DATA_DIR / "events.jsonl"
 
@@ -25,6 +26,13 @@ LOCAL_TZ = timezone(timedelta(hours=7))
 MAX_EVENTS = 5000       # Maximum events to keep in DB
 PRUNE_BATCH = 500       # How many to prune when over limit
 IMAGE_MAX_AGE_SECONDS = 86400  # 24 hours
+
+# Status for clips that were recorded but have no cloud copy. They show up in
+# Recordings alongside uploaded ones, served from EVENT_CLIPS_DIR instead.
+LOCAL_CLIP_STATUS = "clip_recorded"
+_RECORDINGS_WHERE = (
+    "((teldrive_video_id IS NOT NULL AND teldrive_video_id != '') OR status = ?)"
+)
 
 logger = logging.getLogger("fall_detection_web")
 
@@ -375,8 +383,8 @@ def get_recordings(
     date_from: str | None = None,
     date_to: str | None = None,
 ) -> list[dict[str, Any]]:
-    query = "SELECT * FROM events WHERE teldrive_video_id IS NOT NULL AND teldrive_video_id != ''"
-    params: list[Any] = []
+    query = f"SELECT * FROM events WHERE {_RECORDINGS_WHERE}"
+    params: list[Any] = [LOCAL_CLIP_STATUS]
     if camera:
         query += " AND camera = ?"
         params.append(camera)
@@ -392,8 +400,17 @@ def get_recordings(
         rows = conn.execute(query, params).fetchall()
     recordings = [dict(row) for row in rows]
     for item in recordings:
-        name = quote(str(item["teldrive_video_name"]), safe="")
-        item["video_url"] = f"/api/teldrive/file/{item['teldrive_video_id']}/{name}"
+        video_id = str(item.get("teldrive_video_id") or "").strip()
+        if video_id:
+            name = quote(str(item["teldrive_video_name"]), safe="")
+            item["video_url"] = f"/api/teldrive/file/{video_id}/{name}"
+        else:
+            clip_file = Path(str(item.get("message") or "").strip()).name
+            item["video_url"] = (
+                f"/api/event-clip/{quote(clip_file, safe='')}"
+                if clip_file and (EVENT_CLIPS_DIR / clip_file).exists()
+                else ""
+            )
         
         image_file = str(item.get("image_file") or "").strip()
         if item.get("teldrive_image_id") and item.get("teldrive_image_name"):
@@ -405,8 +422,8 @@ def get_recordings(
 
 
 def get_recordings_total(camera: str | None = None, date_from: str | None = None, date_to: str | None = None) -> int:
-    query = "SELECT COUNT(*) FROM events WHERE teldrive_video_id IS NOT NULL AND teldrive_video_id != ''"
-    params: list[Any] = []
+    query = f"SELECT COUNT(*) FROM events WHERE {_RECORDINGS_WHERE}"
+    params: list[Any] = [LOCAL_CLIP_STATUS]
     if camera:
         query += " AND camera = ?"
         params.append(camera)
@@ -418,6 +435,37 @@ def get_recordings_total(camera: str | None = None, date_from: str | None = None
         params.append(date_to)
     with get_conn() as conn:
         return conn.execute(query, params).fetchone()[0]
+
+
+def drop_local_clip_event(file_name: str) -> int:
+    """Drop the local-only row for a clip that has since been uploaded.
+
+    Without this the retry sweep would leave two Recordings cards for one clip:
+    the local row and the teldrive_video_uploaded row.
+    """
+    name = Path(file_name).name
+    if not name:
+        return 0
+    with get_conn() as conn:
+        rows = conn.execute(
+            "SELECT id, image_file FROM events WHERE status = ? AND message = ?",
+            (LOCAL_CLIP_STATUS, name),
+        ).fetchall()
+        if not rows:
+            return 0
+        conn.execute(
+            "DELETE FROM events WHERE status = ? AND message = ?",
+            (LOCAL_CLIP_STATUS, name),
+        )
+    for row in rows:
+        image_file = str(row["image_file"] or "").strip()
+        if image_file:
+            try:
+                (EVENT_IMAGES_DIR / image_file).unlink()
+            except OSError:
+                pass
+    logger.info("[DB] replaced %d local clip row(s) after upload file=%s", len(rows), name)
+    return len(rows)
 
 
 def get_uploaded_video_records() -> list[dict[str, str]]:

@@ -26,7 +26,7 @@ logger = logging.getLogger("fall_detection_web")
 
 DATA_DIR = Path(__file__).resolve().parent / "data"
 SNAPSHOT_PATH = DATA_DIR / "latest.jpg"
-CLIPS_DIR = DATA_DIR / "event_clips"
+CLIPS_DIR = db.EVENT_CLIPS_DIR
 
 state_lock = threading.Lock()
 stop_event = threading.Event()
@@ -221,6 +221,7 @@ def upload_event_video_safe(
             event_time_local=event_time_local,
         )
         upload_recording_thumbnail_if_needed(config, camera_config, camera_name, int(event["id"]), str(event.get("image_file", "")))
+        db.drop_local_clip_event(video_path.name)
         
         # Success! Reset consecutive failures and notify if recovering
         if consecutive_upload_failures >= 3:
@@ -265,10 +266,16 @@ def upload_event_video_safe(
         return False
 
 
-def cleanup_recording_if_needed(camera: dict[str, Any], video_path: Path, uploaded: bool) -> None:
+def cleanup_recording_if_needed(camera: dict[str, Any], video_path: Path, uploaded: bool, attempted: bool = True) -> None:
     if uploaded:
         cleanup_temp_thumbnail(video_path)
     if camera.get("local_save_videos") is not False:
+        return
+    if not attempted:
+        logger.warning(
+            "[RECORD] keeping local clip: local_save_videos is off but there is no cloud copy file=%s",
+            video_path.name,
+        )
         return
     if not uploaded:
         logger.warning("[RECORD] keeping local clip after upload failure file=%s", video_path.name)
@@ -280,12 +287,61 @@ def cleanup_recording_if_needed(camera: dict[str, Any], video_path: Path, upload
         logger.warning("[RECORD] could not remove local clip file=%s error=%s", video_path.name, exc)
 
 
+def record_local_clip_event(camera_name: str, video_path: Path, thumbnail_path: Path | None) -> None:
+    """Log a clip that has no cloud copy so it still appears under Recordings."""
+    meta = clip_metadata_from_name(video_path)
+    has_thumbnail = thumbnail_path is not None and thumbnail_path.exists()
+    try:
+        insert_event(
+            db.LOCAL_CLIP_STATUS,
+            image_path=thumbnail_path if has_thumbnail else None,
+            save_image=has_thumbnail,
+            camera=camera_name,
+            message=video_path.name,
+            event_time=meta.get("event_time", ""),
+            event_time_local=meta.get("event_time_local", ""),
+        )
+    except Exception as exc:
+        logger.warning("[RECORD] could not log local clip file=%s error=%s", video_path.name, exc)
+
+
+def finish_clip(
+    config: dict[str, Any],
+    camera: dict[str, Any],
+    camera_name: str,
+    video_path: Path,
+    thumbnail_path: Path | None,
+) -> None:
+    """Upload a freshly recorded clip when Teldrive is usable, then apply local retention.
+
+    Recording no longer depends on Teldrive, so a clip can legitimately end up with
+    no cloud copy. Those clips are always kept on disk -- deleting them would lose
+    the only copy.
+    """
+    if not teldrive.enabled(config):
+        logger.info("[RECORD] local clip saved, Teldrive not configured file=%s", video_path.name)
+        record_local_clip_event(camera_name, video_path, thumbnail_path)
+        cleanup_recording_if_needed(camera, video_path, uploaded=False, attempted=False)
+        return
+    if time.time() < upload_suspended_until_ts:
+        logger.info("[RECORD] local clip saved, Teldrive upload suspended file=%s", video_path.name)
+        record_local_clip_event(camera_name, video_path, thumbnail_path)
+        cleanup_recording_if_needed(camera, video_path, uploaded=False, attempted=False)
+        return
+    uploaded = upload_event_video_safe(
+        config, video_path, camera_name, thumbnail_path=thumbnail_path, camera_config=camera
+    )
+    cleanup_recording_if_needed(camera, video_path, uploaded=uploaded, attempted=True)
+
+
 def clip_metadata_from_name(path: Path) -> dict[str, str]:
     stem = path.stem
     if len(stem) < 17 or stem[8:9] != "T" or stem[15:16] != "_":
         return {}
     try:
-        dt = datetime.strptime(stem[:15], "%Y%m%dT%H%M%S").replace(tzinfo=timezone.utc)
+        # The stamp is written by time.strftime() off the local clock, so it must be
+        # read back as local time. Reading it as UTC shifted every clip by the tz offset.
+        dt = datetime.strptime(stem[:15], "%Y%m%dT%H%M%S").replace(tzinfo=db.LOCAL_TZ)
     except ValueError:
         return {}
     camera_key = stem[16:]
@@ -293,8 +349,8 @@ def clip_metadata_from_name(path: Path) -> dict[str, str]:
         camera_key = camera_key[:-4]
     return {
         "camera_key": camera_key,
-        "event_time": dt.isoformat(timespec="seconds"),
-        "event_time_local": dt.astimezone(db.LOCAL_TZ).isoformat(timespec="seconds"),
+        "event_time": dt.astimezone(timezone.utc).isoformat(timespec="seconds"),
+        "event_time_local": dt.isoformat(timespec="seconds"),
     }
 
 
@@ -777,7 +833,7 @@ def record_ffmpeg_clip(config: dict[str, Any], camera: dict[str, Any], output_pa
     return None
 
 
-def record_and_upload_clip(
+def record_event_clip(
     config: dict[str, Any],
     camera: dict[str, Any],
     holder: dict[str, Any],
@@ -831,8 +887,7 @@ def record_and_upload_clip(
         if recorded_path:
             with lock:
                 thumbnail_path = save_frame_thumbnail(holder.get("frame"), video_thumbnail_path(recorded_path))
-            uploaded = upload_event_video_safe(config, recorded_path, camera_name, thumbnail_path=thumbnail_path, camera_config=camera)
-            cleanup_recording_if_needed(camera, recorded_path, uploaded)
+            finish_clip(config, camera, camera_name, recorded_path, thumbnail_path)
             return
 
         while time.time() < deadline and not stop_event.is_set():
@@ -877,8 +932,7 @@ def record_and_upload_clip(
 
     if raw_path and raw_path.exists() and raw_path.stat().st_size > 0:
         logger.info("[RECORD] raw clip saved file=%s", raw_path.name)
-        uploaded = upload_event_video_safe(config, raw_path, camera_name, thumbnail_path=extract_video_thumbnail(raw_path), camera_config=camera)
-        cleanup_recording_if_needed(camera, raw_path, uploaded)
+        finish_clip(config, camera, camera_name, raw_path, extract_video_thumbnail(raw_path))
 
 
 def capture_snapshot(config: dict[str, Any], output_path: Path = SNAPSHOT_PATH) -> Path:
@@ -1173,20 +1227,22 @@ def _monitor_loop(config: dict[str, Any]) -> None:
 
                 if person_detected:
                     set_state(last_person_confidence=best_confidence, last_error="", last_camera=camera_name)
-                                       # Check if Teldrive uploads are suspended
-                    if now < upload_suspended_until_ts:
+                    # Teldrive upload backoff pauses recording too, but only when
+                    # Teldrive is the configured destination. With it off, clips are
+                    # local-only and there is nothing to back off from.
+                    uploads_suspended = teldrive.enabled(config) and now < upload_suspended_until_ts
+                    if uploads_suspended:
                         import random
                         if random.random() < 0.1:
                             logger.info("[MONITOR] Teldrive uploads are temporarily suspended (retry after %s)", 
                                         datetime.fromtimestamp(upload_suspended_until_ts, db.LOCAL_TZ).strftime("%H:%M:%S"))
                     elif (
-                        teldrive.enabled(config)
-                        and camera.get("teldrive_record_enabled")
+                        camera.get("teldrive_record_enabled")
                         and now - last_record[index] > float(camera.get("record_cooldown", config.get("teldrive_record_cooldown", 300)))
                     ):
                         last_record[index] = now
                         threading.Thread(
-                            target=record_and_upload_clip,
+                            target=record_event_clip,
                             args=(config.copy(), camera.copy(), frame_holders[index], frame_locks[index]),
                             daemon=True,
                         ).start()

@@ -224,6 +224,24 @@ def event_image(request: Request, filename: str, _: str = Depends(auth.require_a
     )
 
 
+@app.get("/api/event-clip/{filename}")
+def event_clip(filename: str, _: str = Depends(auth.require_auth)):
+    """Serve a locally recorded clip. FileResponse handles Range, so seeking works."""
+    safe_name = Path(filename).name
+    suffix = Path(safe_name).suffix.lower()
+    if safe_name != filename or suffix not in {".mp4", ".avi"}:
+        raise HTTPException(status_code=404, detail="Clip not found")
+    path = db.EVENT_CLIPS_DIR / safe_name
+    if not path.exists() or not path.is_file():
+        raise HTTPException(status_code=404, detail="Clip not found")
+    media_type = "video/mp4" if suffix == ".mp4" else "video/x-msvideo"
+    return FileResponse(
+        path,
+        media_type=media_type,
+        headers={"Cache-Control": "private, max-age=86400"},
+    )
+
+
 @app.get("/api/teldrive/file/{file_id}/{file_name:path}")
 def teldrive_file(request: Request, file_id: str, file_name: str, _: str = Depends(auth.require_auth)):
     try:
