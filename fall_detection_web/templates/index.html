@@ -6,41 +6,54 @@
   <title>Fall Detection Web</title>
   <link rel="icon" type="image/svg+xml" href="/favicon.ico">
   <style>
-    @import url('https://fonts.googleapis.com/css2?family=Fira+Code:wght@500;600;700&family=Fira+Sans:wght@400;500;600;700&display=swap');
-
     :root {
-      --bg: #020617;
-      --bg-soft: #07111f;
-      --surface: #0f172a;
-      --surface-2: #111c2f;
-      --surface-3: #1e293b;
-      --line: #26364d;
-      --line-strong: #3d506c;
-      --text: #f8fafc;
-      --muted: #9aa8bd;
-      --faint: #68778d;
-      --good: #22c55e;
-      --info: #38bdf8;
-      --warn: #f59e0b;
-      --bad: #f43f5e;
-      --violet: #a78bfa;
-      --shadow: 0 24px 80px rgba(0, 0, 0, .34);
-      --radius: 8px;
+      --bg: #f4f6f8;
+      --bg-soft: #eceff3;
+      --surface: #ffffff;
+      --surface-2: #f7f9fb;
+      --surface-3: #eef2f6;
+      --line: #d7dee6;
+      --line-strong: #b3bfcc;
+      --text: #16202b;
+      --muted: #55647a;
+      --faint: #627185;
+      --good: #0f7a4a;
+      --good-ink: #0b5c38;
+      --good-wash: #e6f4ec;
+      --good-edge: #9ccfb5;
+      --info: #1565a8;
+      --info-ink: #0f4c80;
+      --info-wash: #e4eff8;
+      --info-edge: #9dc2e0;
+      --warn: #8a5a00;
+      --warn-ink: #6b4500;
+      --warn-wash: #fbf0dd;
+      --warn-edge: #ddbc7e;
+      --bad: #b3261e;
+      --bad-ink: #8c1d18;
+      --bad-wash: #fbe9e7;
+      --bad-edge: #e3a9a4;
+      --neutral: #55647a;
+      --neutral-ink: #3d4a5c;
+      --neutral-wash: #eef1f5;
+      --neutral-edge: #c3ccd8;
+      --media-well: #0b0f14;
+      --console-bg: #10161d;
+      --console-ink: #cdd6e0;
+      --shadow: 0 1px 2px rgba(16, 32, 48, .06), 0 4px 12px rgba(16, 32, 48, .07);
+      --radius: 6px;
       --sidebar: 272px;
     }
 
     * { box-sizing: border-box; }
-    *::selection { background: rgba(34, 197, 94, .24); }
+    *::selection { background: rgba(15, 122, 74, .24); }
     html { min-height: 100%; background: var(--bg); }
     body {
       min-height: 100vh;
       margin: 0;
-      background:
-        radial-gradient(circle at 18% -12%, rgba(56, 189, 248, .15), transparent 31rem),
-        radial-gradient(circle at 88% 4%, rgba(34, 197, 94, .12), transparent 28rem),
-        linear-gradient(180deg, #020617 0%, #07111f 100%);
+      background: var(--bg);
       color: var(--text);
-      font: 14px/1.45 "Fira Sans", Arial, sans-serif;
+      font: 14px/1.55 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
     }
 
     button, input, textarea, select { font: inherit; }
@@ -48,7 +61,7 @@
     button:disabled { cursor: not-allowed; opacity: .55; }
     a { color: var(--info); text-decoration: none; }
     h1, h2, h3, p { margin: 0; }
-    h1, h2, h3, .mono { font-family: "Fira Code", ui-monospace, SFMono-Regular, Consolas, monospace; }
+    .mono { font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace; }
     .hidden { display: none !important; }
 
     .app {
@@ -63,8 +76,7 @@
       height: 100vh;
       padding: 18px;
       border-right: 1px solid var(--line);
-      background: rgba(2, 6, 23, .78);
-      backdrop-filter: blur(18px);
+      background: var(--surface-2);
       display: flex;
       flex-direction: column;
       gap: 18px;
@@ -86,9 +98,9 @@
       align-items: center;
       justify-content: center;
       color: var(--good);
-      background: linear-gradient(180deg, rgba(34, 197, 94, .16), rgba(56, 189, 248, .08));
-      border: 1px solid rgba(34, 197, 94, .36);
-      box-shadow: inset 0 0 28px rgba(34, 197, 94, .08), 0 0 22px rgba(34, 197, 94, .10);
+      background: linear-gradient(180deg, rgba(15, 122, 74, .16), rgba(21, 101, 168, .08));
+      border: 1px solid rgba(15, 122, 74, .36);
+      box-shadow: inset 0 0 28px rgba(15, 122, 74, .08), 0 0 22px rgba(15, 122, 74, .10);
       flex: 0 0 auto;
     }
 
@@ -126,11 +138,11 @@
       transition: background .18s ease, border-color .18s ease, color .18s ease;
     }
 
-    .nav-btn:hover { color: var(--text); background: rgba(30, 41, 59, .62); }
+    .nav-btn:hover { color: var(--text); background: rgba(238, 242, 246, .62); }
     .nav-btn.active {
       color: var(--text);
-      border-color: rgba(34, 197, 94, .42);
-      background: rgba(34, 197, 94, .12);
+      border-color: rgba(15, 122, 74, .42);
+      background: rgba(15, 122, 74, .12);
     }
 
     .sidebar-foot {
@@ -142,7 +154,7 @@
     .mini-panel {
       border: 1px solid var(--line);
       border-radius: var(--radius);
-      background: rgba(15, 23, 42, .78);
+      background: var(--surface);
       padding: 12px;
       display: grid;
       gap: 8px;
@@ -156,7 +168,7 @@
       color: var(--muted);
       font-size: 12px;
     }
-    .metric-line b { color: var(--text); font-family: "Fira Code", monospace; }
+    .metric-line b { color: var(--text); font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace; }
 
     .main {
       min-width: 0;
@@ -174,8 +186,8 @@
       align-items: center;
       justify-content: space-between;
       gap: 16px;
-      border-bottom: 1px solid rgba(38, 54, 77, .84);
-      background: rgba(7, 17, 31, .82);
+      border-bottom: 1px solid rgba(215, 222, 230, .84);
+      background: rgba(236, 239, 243, .82);
       backdrop-filter: blur(18px);
     }
 
@@ -193,7 +205,7 @@
       min-height: 38px;
       border: 1px solid var(--line);
       border-radius: 999px;
-      background: rgba(15, 23, 42, .78);
+      background: var(--neutral-wash);
       color: var(--muted);
       padding: 8px 12px;
       display: inline-flex;
@@ -208,20 +220,20 @@
       height: 9px;
       border-radius: 50%;
       background: var(--faint);
-      box-shadow: 0 0 0 4px rgba(104, 119, 141, .14);
+      box-shadow: 0 0 0 4px rgba(98, 113, 133, .14);
       position: relative;
     }
     .dot.running {
       background: var(--good);
-      box-shadow: 0 0 0 4px rgba(34, 197, 94, .16);
+      box-shadow: 0 0 0 4px rgba(15, 122, 74, .16);
       animation: radar-pulse 1.8s infinite;
     }
-    .dot.good { background: var(--good); box-shadow: 0 0 0 4px rgba(34, 197, 94, .16); }
-    .dot.bad { background: var(--bad); box-shadow: 0 0 0 4px rgba(244, 63, 94, .16); }
-    .dot.warn { background: var(--warn); box-shadow: 0 0 0 4px rgba(245, 158, 11, .16); }
+    .dot.good { background: var(--good); box-shadow: 0 0 0 4px rgba(15, 122, 74, .16); }
+    .dot.bad { background: var(--bad); box-shadow: 0 0 0 4px rgba(179, 38, 30, .16); }
+    .dot.warn { background: var(--warn); box-shadow: 0 0 0 4px rgba(138, 90, 0, .16); }
     @keyframes radar-pulse {
-      0% { box-shadow: 0 0 0 0px rgba(34, 197, 94, 0.45), 0 0 0 0px rgba(34, 197, 94, 0.2); }
-      100% { box-shadow: 0 0 0 8px rgba(34, 197, 94, 0), 0 0 0 16px rgba(34, 197, 94, 0); }
+      0% { box-shadow: 0 0 0 0px rgba(15, 122, 74, 0.45), 0 0 0 0px rgba(15, 122, 74, 0.2); }
+      100% { box-shadow: 0 0 0 8px rgba(15, 122, 74, 0), 0 0 0 16px rgba(15, 122, 74, 0); }
     }
 
     .view { display: none; }
@@ -238,8 +250,8 @@
     .panel, .stat-card {
       border: 1px solid var(--line);
       border-radius: var(--radius);
-      background: linear-gradient(180deg, rgba(15, 23, 42, .94), rgba(12, 21, 36, .94));
-      box-shadow: 0 14px 42px rgba(0, 0, 0, .18);
+      background: var(--surface);
+      box-shadow: var(--shadow);
     }
 
     .panel { padding: 16px; }
@@ -262,14 +274,14 @@
     }
     .stat-top { display: flex; justify-content: space-between; align-items: center; gap: 10px; }
     .stat-label { color: var(--muted); font-weight: 700; font-size: 12px; }
-    .stat-value { font-family: "Fira Code", monospace; font-size: 28px; line-height: 1; }
+    .stat-value { font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace; font-size: 28px; line-height: 1; }
     .stat-note { color: var(--faint); font-size: 12px; min-height: 17px; }
 
     .btn {
       min-height: 40px;
       border: 1px solid var(--line-strong);
       border-radius: var(--radius);
-      background: rgba(30, 41, 59, .62);
+      background: rgba(238, 242, 246, .62);
       color: var(--text);
       padding: 9px 12px;
       display: inline-flex;
@@ -280,11 +292,11 @@
       transition: background .18s ease, border-color .18s ease, color .18s ease, opacity .18s ease;
       white-space: nowrap;
     }
-    .btn:hover { border-color: var(--info); background: rgba(56, 189, 248, .10); }
-    .btn.primary { border-color: rgba(34, 197, 94, .68); background: var(--good); color: #04130a; }
-    .btn.primary:hover { background: #4ade80; }
-    .btn.danger { border-color: rgba(244, 63, 94, .72); color: #fecdd3; background: rgba(244, 63, 94, .12); }
-    .btn.danger:hover { background: rgba(244, 63, 94, .20); }
+    .btn:hover { border-color: var(--info); background: rgba(21, 101, 168, .10); }
+    .btn.primary { border-color: rgba(15, 122, 74, .68); background: var(--good); color: #ffffff; }
+    .btn.primary:hover { background: var(--good-ink); }
+    .btn.danger { border-color: rgba(179, 38, 30, .72); color: var(--bad-ink); background: rgba(179, 38, 30, .12); }
+    .btn.danger:hover { background: rgba(179, 38, 30, .20); }
     .btn.ghost { background: transparent; }
     .btn.small { min-height: 34px; padding: 7px 9px; font-size: 12px; }
 
@@ -293,7 +305,7 @@
       min-height: 40px;
       border: 1px solid var(--line);
       border-radius: var(--radius);
-      background: rgba(2, 6, 23, .42);
+      background: var(--surface-3);
       color: var(--text);
       padding: 9px 11px;
       outline: none;
@@ -302,9 +314,9 @@
     textarea { min-height: 118px; resize: vertical; }
     input:focus, textarea:focus, select:focus, button:focus-visible, a:focus-visible {
       border-color: var(--good);
-      box-shadow: 0 0 0 3px rgba(34, 197, 94, .16);
+      box-shadow: 0 0 0 3px rgba(15, 122, 74, .16);
     }
-    input::placeholder, textarea::placeholder { color: #5f6f85; }
+    input::placeholder, textarea::placeholder { color: var(--faint); }
     input[type="checkbox"] {
       width: 18px;
       min-height: 18px;
@@ -323,7 +335,7 @@
       padding: 9px 11px;
       border: 1px solid var(--line);
       border-radius: var(--radius);
-      background: rgba(2, 6, 23, .28);
+      background: var(--surface-3);
       color: var(--muted);
       font-weight: 700;
       font-size: 12px;
@@ -332,8 +344,8 @@
     .table-wrap { overflow: auto; border-radius: var(--radius); }
     table { width: 100%; border-collapse: collapse; min-width: 760px; }
     th, td { padding: 11px 12px; border-bottom: 1px solid var(--line); text-align: left; vertical-align: middle; }
-    th { color: var(--muted); font-size: 12px; font-weight: 700; background: rgba(2, 6, 23, .24); }
-    td { color: #dbe5f4; }
+    th { color: var(--muted); font-size: 12px; font-weight: 700; background: var(--surface-2); }
+    td { color: var(--text); }
     tr:last-child td { border-bottom: 0; }
 
     .badge {
@@ -345,15 +357,15 @@
       border: 1px solid var(--line);
       padding: 4px 9px;
       color: var(--muted);
-      background: rgba(2, 6, 23, .28);
+      background: var(--neutral-wash);
       font-size: 12px;
       font-weight: 700;
       white-space: nowrap;
     }
-    .badge.good { color: #bbf7d0; border-color: rgba(34, 197, 94, .44); background: rgba(34, 197, 94, .10); }
-    .badge.bad { color: #fecdd3; border-color: rgba(244, 63, 94, .44); background: rgba(244, 63, 94, .10); }
-    .badge.warn { color: #fde68a; border-color: rgba(245, 158, 11, .44); background: rgba(245, 158, 11, .10); }
-    .badge.info { color: #bae6fd; border-color: rgba(56, 189, 248, .44); background: rgba(56, 189, 248, .10); }
+    .badge.good { color: var(--good-ink); border-color: rgba(15, 122, 74, .44); background: rgba(15, 122, 74, .10); }
+    .badge.bad { color: var(--bad-ink); border-color: rgba(179, 38, 30, .44); background: rgba(179, 38, 30, .10); }
+    .badge.warn { color: var(--warn-ink); border-color: rgba(138, 90, 0, .44); background: rgba(138, 90, 0, .10); }
+    .badge.info { color: var(--info-ink); border-color: rgba(21, 101, 168, .44); background: rgba(21, 101, 168, .10); }
 
     .stack { display: grid; gap: 10px; }
     .actions { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
@@ -375,13 +387,13 @@
       padding: 18px;
       color: var(--muted);
       text-align: center;
-      background: rgba(2, 6, 23, .22);
+      background: var(--surface-2);
     }
 
     .camera-card, .prompt-card {
       border: 1px solid var(--line);
       border-radius: var(--radius);
-      background: rgba(2, 6, 23, .24);
+      background: var(--surface);
       padding: 13px;
       display: grid;
       gap: 12px;
@@ -399,7 +411,7 @@
       overflow: hidden;
       border: 1px solid var(--line);
       border-radius: var(--radius);
-      background: rgba(2, 6, 23, .42);
+      background: var(--media-well);
     }
     .live-card header {
       padding: 10px 12px;
@@ -407,14 +419,15 @@
       justify-content: space-between;
       gap: 10px;
       border-bottom: 1px solid var(--line);
-      background: rgba(15, 23, 42, .72);
+      background: rgba(11, 15, 20, .72);
+      color: var(--console-ink);
     }
     .live-card iframe, .live-card img, .viewer-body iframe, .viewer-body img {
       width: 100%;
       aspect-ratio: 16 / 9;
       display: block;
       border: 0;
-      background: #000;
+      background: var(--media-well);
       object-fit: contain;
     }
     dialog {
@@ -427,7 +440,7 @@
       background: var(--surface);
       box-shadow: var(--shadow);
     }
-    dialog::backdrop { background: rgba(0, 0, 0, .72); backdrop-filter: blur(4px); }
+    dialog::backdrop { background: rgba(11, 15, 20, .72); backdrop-filter: blur(4px); }
     .dialog-head, .dialog-foot {
       padding: 14px 16px;
       display: flex;
@@ -438,7 +451,7 @@
     }
     .dialog-foot { border-top: 1px solid var(--line); border-bottom: 0; justify-content: flex-end; }
     .dialog-body { padding: 16px; overflow: auto; max-height: calc(100vh - 160px); }
-    .viewer-body { padding: 12px; background: #000; }
+    .viewer-body { padding: 12px; background: var(--media-well); }
 
     .toast-stack {
       position: fixed;
@@ -454,7 +467,7 @@
       border: 1px solid var(--line);
       border-left: 4px solid var(--info);
       border-radius: var(--radius);
-      background: rgba(15, 23, 42, .96);
+      background: var(--surface);
       padding: 12px 14px;
       box-shadow: var(--shadow);
       color: var(--text);
@@ -478,12 +491,12 @@
     }
     .system-gauge b {
       color: var(--text);
-      font-family: "Fira Code", monospace;
+      font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
       font-size: 12px;
     }
     .gauge-bar {
       height: 6px;
-      background: rgba(2, 6, 23, 0.4);
+      background: var(--surface-3);
       border: 1px solid var(--line);
       border-radius: 3px;
       overflow: hidden;
@@ -493,16 +506,16 @@
       width: 0%;
       background: linear-gradient(90deg, var(--info), var(--good));
       border-radius: 3px;
-      box-shadow: 0 0 8px rgba(34, 197, 94, 0.4);
+      box-shadow: 0 0 8px rgba(15, 122, 74, 0.4);
       transition: width 0.4s ease, background 0.4s ease, box-shadow 0.4s ease;
     }
     .gauge-fill.warn {
       background: linear-gradient(90deg, var(--info), var(--warn));
-      box-shadow: 0 0 8px rgba(245, 158, 11, 0.3);
+      box-shadow: 0 0 8px rgba(138, 90, 0, 0.3);
     }
     .gauge-fill.crit {
       background: linear-gradient(90deg, var(--warn), var(--bad));
-      box-shadow: 0 0 8px rgba(244, 63, 94, 0.4);
+      box-shadow: 0 0 8px rgba(179, 38, 30, 0.4);
     }
 
     /* Incident Row Styles */
@@ -513,13 +526,13 @@
       padding: 10px;
       border: 1px solid var(--line);
       border-radius: var(--radius);
-      background: rgba(2, 6, 23, 0.24);
+      background: var(--surface);
       transition: all 0.2s ease;
     }
     .incident-row.emergency {
-      border-color: rgba(244, 63, 94, 0.4);
-      background: linear-gradient(90deg, rgba(244, 63, 94, 0.08) 0%, rgba(2, 6, 23, 0.3) 100%);
-      box-shadow: 0 0 15px rgba(244, 63, 94, 0.04);
+      border-color: rgba(179, 38, 30, 0.4);
+      background: linear-gradient(90deg, rgba(179, 38, 30, 0.08) 0%, var(--surface) 100%);
+      box-shadow: 0 0 15px rgba(179, 38, 30, 0.04);
     }
     .incident-thumb {
       width: 60px;
@@ -554,7 +567,7 @@
     .camera-card-premium {
       border: 1px solid var(--line);
       border-radius: var(--radius);
-      background: rgba(2, 6, 23, 0.16);
+      background: var(--surface);
       padding: 12px;
       transition: all 0.22s ease;
       display: flex;
@@ -562,12 +575,12 @@
       justify-content: space-between;
     }
     .camera-card-premium.enabled {
-      border-color: rgba(34, 197, 94, 0.2);
+      border-color: rgba(15, 122, 74, 0.2);
     }
     .camera-card-premium.enabled:hover {
-      border-color: rgba(34, 197, 94, 0.45);
-      background: rgba(34, 197, 94, 0.03);
-      box-shadow: 0 4px 15px rgba(34, 197, 94, 0.04);
+      border-color: rgba(15, 122, 74, 0.45);
+      background: rgba(15, 122, 74, 0.03);
+      box-shadow: 0 4px 15px rgba(15, 122, 74, 0.04);
     }
     .camera-card-premium.disabled {
       opacity: 0.65;
@@ -859,7 +872,7 @@
           </section>
           <section class="panel">
             <div class="panel-head"><div><h3>Result</h3><p>Raw diagnostic output.</p></div></div>
-            <pre id="toolResult" style="min-height:260px; overflow:auto; white-space:pre-wrap; margin:0; color:#dbe5f4;"></pre>
+            <pre id="toolResult" style="min-height:260px; overflow:auto; white-space:pre-wrap; margin:0; background:var(--console-bg); color:var(--console-ink);"></pre>
           </section>
           <section class="panel span-2">
             <div class="panel-head"><div><h3>Account</h3><p>Update the local admin account.</p></div></div>
@@ -893,7 +906,7 @@
                 </label>
               </div>
             </div>
-            <pre id="logContent" style="height: calc(100vh - 200px); overflow: auto; background: #020617; border: 1px solid var(--line); border-radius: var(--radius); padding: 14px; font-family: 'Fira Code', monospace; font-size: 12px; line-height: 1.5; color: #dbe5f4; white-space: pre-wrap; margin: 0;"></pre>
+            <pre id="logContent" style="height: calc(100vh - 200px); overflow: auto; background: var(--console-bg); border: 1px solid var(--line); border-radius: var(--radius); padding: 14px; font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace; font-size: 12px; line-height: 1.5; color: var(--console-ink); white-space: pre-wrap; margin: 0;"></pre>
           </section>
         </div>
       </section>
@@ -1461,7 +1474,7 @@
           return;
         }
 
-        const fontConfig = { family: '"Fira Sans", Arial, sans-serif', size: 10 };
+        const fontConfig = { family: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif', size: 10 };
         state.incidentChart = new Chart(ctx, {
           type: "line",
           data: {
@@ -1470,30 +1483,30 @@
               {
                 label: "Safe",
                 data: safeCounts,
-                borderColor: "#22c55e",
-                backgroundColor: "rgba(34, 197, 94, 0.08)",
+                borderColor: "#0f7a4a",
+                backgroundColor: "rgba(15, 122, 74, 0.08)",
                 borderWidth: 2,
                 tension: 0.35,
                 fill: true,
-                pointBackgroundColor: "#22c55e",
-                pointBorderColor: "rgba(255,255,255,0.05)",
+                pointBackgroundColor: "#0f7a4a",
+                pointBorderColor: "rgba(22, 32, 43, 0.05)",
                 pointHoverBackgroundColor: "#ffffff",
-                pointHoverBorderColor: "#22c55e",
+                pointHoverBorderColor: "#0f7a4a",
                 pointRadius: 2.5,
                 pointHoverRadius: 4.5
               },
               {
                 label: "Emergency",
                 data: emergencyCounts,
-                borderColor: "#f43f5e",
-                backgroundColor: "rgba(244, 63, 94, 0.08)",
+                borderColor: "#b3261e",
+                backgroundColor: "rgba(179, 38, 30, 0.08)",
                 borderWidth: 2,
                 tension: 0.35,
                 fill: true,
-                pointBackgroundColor: "#f43f5e",
-                pointBorderColor: "rgba(255,255,255,0.05)",
+                pointBackgroundColor: "#b3261e",
+                pointBorderColor: "rgba(22, 32, 43, 0.05)",
                 pointHoverBackgroundColor: "#ffffff",
-                pointHoverBorderColor: "#f43f5e",
+                pointHoverBorderColor: "#b3261e",
                 pointRadius: 2.5,
                 pointHoverRadius: 4.5
               }
@@ -1507,13 +1520,13 @@
                 display: true,
                 position: "top",
                 align: "end",
-                labels: { color: "#9aa8bd", font: fontConfig, boxWidth: 8, boxHeight: 8, padding: 8 }
+                labels: { color: "#55647a", font: fontConfig, boxWidth: 8, boxHeight: 8, padding: 8 }
               },
               tooltip: {
-                backgroundColor: "#0f172a",
-                titleColor: "#f8fafc",
-                bodyColor: "#dbe5f4",
-                borderColor: "#26364d",
+                backgroundColor: "#ffffff",
+                titleColor: "#16202b",
+                bodyColor: "#cdd6e0",
+                borderColor: "#d7dee6",
                 borderWidth: 1,
                 titleFont: fontConfig,
                 bodyFont: fontConfig,
@@ -1524,12 +1537,12 @@
             },
             scales: {
               x: {
-                grid: { color: "rgba(38, 54, 77, 0.2)", borderColor: "rgba(38, 54, 77, 0.4)" },
-                ticks: { color: "#9aa8bd", font: fontConfig }
+                grid: { color: "rgba(215, 222, 230, 0.2)", borderColor: "rgba(215, 222, 230, 0.4)" },
+                ticks: { color: "#55647a", font: fontConfig }
               },
               y: {
-                grid: { color: "rgba(38, 54, 77, 0.2)", borderColor: "rgba(38, 54, 77, 0.4)" },
-                ticks: { color: "#9aa8bd", font: fontConfig, stepSize: 1, precision: 0 },
+                grid: { color: "rgba(215, 222, 230, 0.2)", borderColor: "rgba(215, 222, 230, 0.4)" },
+                ticks: { color: "#55647a", font: fontConfig, stepSize: 1, precision: 0 },
                 min: 0
               }
             }
