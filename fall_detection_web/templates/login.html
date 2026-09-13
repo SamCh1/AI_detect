@@ -6,21 +6,43 @@
   <title>Login - Fall Detection Web</title>
   <link rel="icon" type="image/svg+xml" href="/favicon.ico">
   <style>
-    @import url('https://fonts.googleapis.com/css2?family=Fira+Code:wght@500;600;700&family=Fira+Sans:wght@400;500;600;700&display=swap');
-
     :root {
-      --bg: #020617;
-      --surface: #0f172a;
-      --surface-2: #111c2f;
-      --line: #26364d;
-      --line-strong: #3d506c;
-      --text: #f8fafc;
-      --muted: #9aa8bd;
-      --good: #22c55e;
-      --info: #38bdf8;
-      --bad: #f43f5e;
-      --radius: 8px;
-      --shadow: 0 24px 80px rgba(0, 0, 0, .38);
+      --bg: #f4f6f8;
+      --bg-soft: #eceff3;
+      --surface: #ffffff;
+      --surface-2: #f7f9fb;
+      --surface-3: #eef2f6;
+      --line: #d7dee6;
+      --line-strong: #b3bfcc;
+      --text: #16202b;
+      --muted: #55647a;
+      --faint: #627185;
+      --good: #0f7a4a;
+      --good-ink: #0b5c38;
+      --good-wash: #e6f4ec;
+      --good-edge: #9ccfb5;
+      --info: #1565a8;
+      --info-ink: #0f4c80;
+      --info-wash: #e4eff8;
+      --info-edge: #9dc2e0;
+      --warn: #8a5a00;
+      --warn-ink: #6b4500;
+      --warn-wash: #fbf0dd;
+      --warn-edge: #ddbc7e;
+      --bad: #b3261e;
+      --bad-ink: #8c1d18;
+      --bad-wash: #fbe9e7;
+      --bad-edge: #e3a9a4;
+      --neutral: #55647a;
+      --neutral-ink: #3d4a5c;
+      --neutral-wash: #eef1f5;
+      --neutral-edge: #c3ccd8;
+      --media-well: #0b0f14;
+      --console-bg: #10161d;
+      --console-ink: #cdd6e0;
+      --shadow: 0 1px 2px rgba(16, 32, 48, .06), 0 4px 12px rgba(16, 32, 48, .07);
+      --radius: 6px;
+      --sidebar: 272px;
     }
 
     * { box-sizing: border-box; }
@@ -30,12 +52,9 @@
       display: grid;
       place-items: center;
       padding: 22px;
-      background:
-        radial-gradient(circle at 20% -12%, rgba(56, 189, 248, .16), transparent 31rem),
-        radial-gradient(circle at 88% 4%, rgba(34, 197, 94, .13), transparent 28rem),
-        linear-gradient(180deg, #020617 0%, #07111f 100%);
+      background: var(--bg);
       color: var(--text);
-      font: 15px/1.45 "Fira Sans", Arial, sans-serif;
+      font: 15px/1.55 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
     }
 
     .shell {
@@ -45,9 +64,8 @@
       border: 1px solid var(--line);
       border-radius: var(--radius);
       overflow: hidden;
-      background: rgba(15, 23, 42, .84);
+      background: var(--surface);
       box-shadow: var(--shadow);
-      backdrop-filter: blur(18px);
     }
 
     .intro {
@@ -57,8 +75,8 @@
       flex-direction: column;
       justify-content: space-between;
       background:
-        linear-gradient(135deg, rgba(34, 197, 94, .12), transparent 42%),
-        rgba(2, 6, 23, .32);
+        linear-gradient(135deg, rgba(15, 122, 74, .12), transparent 42%),
+        var(--surface-2);
       border-right: 1px solid var(--line);
     }
 
@@ -75,13 +93,13 @@
       display: grid;
       place-items: center;
       color: var(--good);
-      background: linear-gradient(180deg, rgba(34, 197, 94, .16), rgba(56, 189, 248, .08));
-      border: 1px solid rgba(34, 197, 94, .36);
-      box-shadow: inset 0 0 28px rgba(34, 197, 94, .08), 0 0 22px rgba(34, 197, 94, .10);
+      background: linear-gradient(180deg, rgba(15, 122, 74, .16), rgba(21, 101, 168, .08));
+      border: 1px solid rgba(15, 122, 74, .36);
+      box-shadow: inset 0 0 28px rgba(15, 122, 74, .08), 0 0 22px rgba(15, 122, 74, .10);
     }
 
     svg { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
-    h1, h2, .mono { font-family: "Fira Code", ui-monospace, SFMono-Regular, Consolas, monospace; }
+    .mono { font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace; }
     h1, h2, p { margin: 0; }
     h1 { font-size: 22px; }
     .brand p { margin-top: 3px; color: var(--muted); font-size: 13px; }
@@ -98,20 +116,20 @@
       min-height: 92px;
       border: 1px solid var(--line);
       border-radius: var(--radius);
-      background: rgba(15, 23, 42, .7);
+      background: var(--surface);
       padding: 12px;
       display: grid;
       align-content: space-between;
     }
     .status-card span { color: var(--muted); font-size: 12px; font-weight: 700; }
-    .status-card b { font-family: "Fira Code", monospace; font-size: 18px; }
+    .status-card b { font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace; font-size: 18px; }
 
     .login {
       padding: 42px 38px;
       display: flex;
       flex-direction: column;
       justify-content: center;
-      background: rgba(15, 23, 42, .94);
+      background: var(--surface);
     }
 
     .login h2 { font-size: 20px; margin-bottom: 8px; }
@@ -122,7 +140,7 @@
       min-height: 44px;
       border: 1px solid var(--line);
       border-radius: var(--radius);
-      background: rgba(2, 6, 23, .42);
+      background: var(--surface-3);
       color: var(--text);
       padding: 10px 12px;
       font: inherit;
@@ -132,9 +150,9 @@
     }
     input:focus, button:focus-visible {
       border-color: var(--good);
-      box-shadow: 0 0 0 3px rgba(34, 197, 94, .16);
+      box-shadow: 0 0 0 3px rgba(15, 122, 74, .16);
     }
-    input::placeholder { color: #5f6f85; }
+    input::placeholder { color: var(--faint); }
 
     .check-row {
       display: flex;
@@ -157,22 +175,22 @@
     button {
       width: 100%;
       min-height: 44px;
-      border: 1px solid rgba(34, 197, 94, .68);
+      border: 1px solid rgba(15, 122, 74, .68);
       border-radius: var(--radius);
       background: var(--good);
-      color: #04130a;
+      color: #ffffff;
       font: inherit;
       font-weight: 800;
       cursor: pointer;
       transition: background .18s ease;
     }
-    button:hover { background: #4ade80; }
+    button:hover { background: var(--good-ink); }
 
     .error {
-      border: 1px solid rgba(244, 63, 94, .44);
+      border: 1px solid rgba(179, 38, 30, .44);
       border-radius: var(--radius);
-      background: rgba(244, 63, 94, .10);
-      color: #fecdd3;
+      background: rgba(179, 38, 30, .10);
+      color: var(--bad-ink);
       padding: 11px 12px;
       margin-bottom: 16px;
       font-weight: 700;
